@@ -1,0 +1,1211 @@
+<!doctype html>
+<html lang="ja"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>かぐや姫と大和の地図</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="大和とかぐや姫">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F2F3F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#11152A" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="maplibre-gl.css">
+<style>:root{padding-top:env(safe-area-inset-top,0px)}body{margin:0}[hidden]{display:none!important}</style>
+</head><body>
+<style>
+/* Layout: スマホアプリ型。上に見出し、下にタブ(地図・系図・まとめ)、詳細は下から出るシート */
+:root{
+  --bg:#F2F3F7; --surface:#FFFFFF; --ink:#1C2340; --muted:#5B6278; --line:#D6D9E3;
+  --accent:#9A7632; --accent-soft:#F3ECDD; --bar:#FFFFFF;
+  --sai-bg:#ECE8F8; --sai:#4F3F94; --tou-bg:#E1F1EB; --tou:#1D6650; --oth-bg:#ECEEF2; --oth:#535A70;
+  --love:#C0466C; --focus:#3B4FB8; --scrim:rgba(20,24,44,.38);
+  --shu:#c8402a; --sun:#c99a1c; --dusk:#8a5a9e; --capital:#2c4f8a; --mount:#4f6e33; --mountfill:#a9be86; --road:#8a5a2b; --gold:#B8862B;
+  --day1:#d1553c; --day2:#2f7d6d; --day3:#b07a12; --day4:#5b5fb5; --day5:#9a4b7e;
+  --display:"Hiragino Mincho ProN","Yu Mincho","Noto Serif CJK JP",serif;
+  --body:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans CJK JP",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11152A; --surface:#1A1F37; --ink:#E7E9F3; --muted:#A4AAC3; --line:#2F3654;
+  --accent:#D8B66C; --accent-soft:#2E2A22; --bar:#161A30;
+  --sai-bg:#2A2552; --sai:#CBBFF4; --tou-bg:#163A31; --tou:#9DD9C2; --oth-bg:#242A43; --oth:#B9BED3;
+  --love:#E98CAA; --focus:#9AA8FF; --scrim:rgba(0,0,0,.55);
+  --shu:#ec6a50; --sun:#e6bd4a; --dusk:#b78ccb; --capital:#7fa3e0; --mount:#9bbd76; --mountfill:#3f5230; --road:#d09a64; --gold:#E2BC6A;
+  --day1:#ef7a62; --day2:#55b8a3; --day3:#dcaa3c; --day4:#8f93e6; --day5:#d07fb5; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#11152A; --surface:#1A1F37; --ink:#E7E9F3; --muted:#A4AAC3; --line:#2F3654;
+  --accent:#D8B66C; --accent-soft:#2E2A22; --bar:#161A30;
+  --sai-bg:#2A2552; --sai:#CBBFF4; --tou-bg:#163A31; --tou:#9DD9C2; --oth-bg:#242A43; --oth:#B9BED3;
+  --love:#E98CAA; --focus:#9AA8FF; --scrim:rgba(0,0,0,.55);
+  --shu:#ec6a50; --sun:#e6bd4a; --dusk:#b78ccb; --capital:#7fa3e0; --mount:#9bbd76; --mountfill:#3f5230; --road:#d09a64; --gold:#E2BC6A;
+  --day1:#ef7a62; --day2:#55b8a3; --day3:#dcaa3c; --day4:#8f93e6; --day5:#d07fb5; color-scheme:dark }
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg)}
+body{color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.85;-webkit-text-size-adjust:100%}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.top{max-width:880px;margin:0 auto;padding-block:14px 4px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:0}
+.eyebrow{font-size:12px;letter-spacing:.14em;color:var(--accent);font-weight:700;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.status{font-weight:500;letter-spacing:0;color:var(--muted);font-size:11px;border:1px solid var(--line);border-radius:999px;padding:0 8px}
+.status.ok{color:var(--tou);border-color:var(--tou)}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(22px,5.6vw,32px);line-height:1.35;margin:0;text-wrap:balance}
+main{max-width:880px;margin:0 auto;padding-block:8px calc(96px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.view{display:flex;flex-direction:column;gap:14px}
+.hint{margin:0;color:var(--muted);font-size:13px;line-height:1.7}
+h2{font-family:var(--display);font-size:20px;margin:0}
+h2.sub{font-size:17px}
+/* 地図 */
+.mapwrap{position:relative;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface)}
+#lmap{height:min(66vh,680px);min-height:380px;background:#e8eae4}
+.mk{width:0;height:0}
+.mk.lbl{pointer-events:none;z-index:0}
+.roadlab{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;color:#7a4a1c;font-weight:700;font-size:12px;font-family:var(--display);text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff}
+.pairlab{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;background:rgba(255,255,255,.88);border:1px solid #c8402a;color:#a8321f;font-weight:700;font-size:11px;border-radius:6px;padding:1px 6px}
+.lz-min .roadlab,.lz-min .pairlab{display:none}
+.sunlab.far{display:none}
+.lz-far .sunlab.far{display:block}
+.lz-far .sunlab.near{display:none}
+.lz-far .pin .lab,.lz-far.lz-min .pin .lab.k,.lz-far.lz-min .pin .lab.c{display:none}
+.maplibregl-ctrl-top-left{margin-top:0}
+.mapbtns{position:absolute;right:10px;top:10px;z-index:5;display:flex;flex-direction:column;gap:6px}
+.mbtn{font:inherit;font-size:12px;font-weight:700;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:6px 10px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.15);min-width:64px}
+.mbtn[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.mapnote{position:absolute;left:52px;right:96px;top:10px;z-index:5;font-size:12px;line-height:1.5;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:6px 10px}
+.mfilter{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+.mfilter::-webkit-scrollbar{display:none}
+.maplibregl-map{font-family:var(--body)}
+.maplibregl-ctrl-attrib{font-size:10px}
+.pin{position:relative}
+.pin .dot{position:absolute;left:0;top:0;transform:translate(-50%,-50%);border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+.pin .sq{position:absolute;left:0;top:0;transform:translate(-50%,-50%);border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+.pin .dia{position:absolute;left:0;top:0;transform:translate(-50%,-50%) rotate(45deg);background:#fff;border:2.5px solid}
+.pin .tri{position:absolute;left:0;top:0;transform:translate(-50%,-70%);width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-bottom:15px solid var(--mount)}
+.pin .torii{position:absolute;left:0;top:0;transform:translate(-50%,-50%);width:22px;height:22px;border-radius:50%;background:var(--shu);border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.3);display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700;font-family:var(--display);line-height:1}
+.pin .ring{position:absolute;left:0;top:0;transform:translate(-50%,-50%);width:30px;height:30px;border-radius:50%;border:2.5px solid var(--gold);pointer-events:none}
+.pin.sel .dot,.pin.sel .sq,.pin.sel .torii,.pin.sel .dia{outline:3px solid var(--ink);outline-offset:2px}
+.pin .lab{position:absolute;left:12px;top:-9px;white-space:nowrap;font-size:12px;font-weight:700;color:#1c2340;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff;pointer-events:none}
+.pin .lab.k{color:#a8321f;font-family:var(--display);font-size:13px}
+.pin .lab.m{left:-40px;width:80px;text-align:center;top:6px;color:#3d5a26;font-family:var(--display)}
+.pin .lab.c{color:#2c4f8a;font-family:var(--display);font-size:14px}
+.pin .lab.y{color:#7a5410}
+.lz-low .lab.t,.lz-low .lab.y2{display:none}
+.lz-min .lab{display:none}
+.lz-min .lab.k,.lz-min .lab.c{display:block}
+.places{display:flex;flex-direction:column;gap:10px}
+.pl{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;text-align:left;font:inherit;color:var(--ink);cursor:pointer}
+.pl b{font-size:16px}.pl .where{font-size:12px;color:var(--muted)}
+.daybar{position:absolute;left:10px;bottom:34px;z-index:5;display:flex;gap:8px;align-items:center;font-size:13px;font-weight:700;background:var(--surface);color:var(--ink);border:2px solid var(--line);border-radius:999px;padding:4px 6px 4px 12px;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.daybar button{font:inherit;font-size:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:2px 10px;cursor:pointer}
+.pin.dim{opacity:.3}
+.leaflet-tooltip.road-label{background:transparent;border:none;box-shadow:none;color:#7a4a1c;font-weight:700;font-size:12px;font-family:var(--display);text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff;padding:0}
+.leaflet-tooltip.pair-label{background:rgba(255,255,255,.85);border:1px solid #c8402a;color:#a8321f;font-weight:700;font-size:11px;border-radius:6px;padding:1px 6px;box-shadow:none}
+.leaflet-tooltip.road-label::before,.leaflet-tooltip.pair-label::before{display:none}
+.sunlab{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;font-size:11px;font-weight:700;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff;pointer-events:none}
+.sunlab.base{color:#7a5410;transform:translate(-50%,10px)}
+.lz-min:not(.lz-far) .sunlab.near{display:none}
+.lz-far .mk[data-t="trip"],.lz-far .mk[data-t="yk"],.lz-far .mk[data-t="stay"],.lz-far .mk[data-t="mt"]{display:none}
+.srctag{display:inline-block;font-size:11px;font-weight:700;line-height:1.6;padding:0 6px;border-radius:4px;background:var(--oth-bg);color:var(--oth);margin-right:4px;vertical-align:1px}
+/* 旅程 */
+.day{display:flex;flex-direction:column;gap:0;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.dayhead{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.dayhead b{font-family:var(--display);font-size:18px}
+.row{display:grid;grid-template-columns:52px minmax(0,1fr);gap:8px;padding:8px 14px;border-top:1px solid var(--line);align-items:baseline}
+.row:first-of-type{border-top:none}
+.row .tm{font-variant-numeric:tabular-nums;font-size:14px;font-weight:700;color:var(--muted)}
+.row .bd{display:flex;flex-direction:column;gap:2px;min-width:0}
+.row .nt{font-size:13px;color:var(--muted)}
+.row.move{padding-block:4px}.row.move .bd{font-size:12px;color:var(--muted)}
+.row.move .bd::before{content:"↓ ";}
+.row.info .bd{font-size:14px}
+.row button.place{font-size:16px;text-align:left}
+.row .dotd{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:1px}
+/* 系図 */
+.filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.filters::-webkit-scrollbar{display:none}
+.fchip{flex:none;font:inherit;font-size:13px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:4px 12px;cursor:pointer;white-space:nowrap}
+.fchip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.fnote{margin:0;font-size:14px;background:var(--accent-soft);border-radius:10px;padding:8px 12px;display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.fnote button{font:inherit;font-size:13px;color:var(--accent);background:none;border:none;text-decoration:underline;cursor:pointer;padding:0}
+.chart{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.chart svg{display:block;width:100%;min-width:700px;height:auto;padding:8px}
+svg text{font-family:var(--body)}
+.n{cursor:pointer;outline:none;transition:opacity .2s}
+.n rect{stroke-width:1}
+.n .nm{font-size:14px;font-weight:700}.n .sb{font-size:11px}
+.n.sai rect{fill:var(--sai-bg);stroke:var(--sai)}.n.sai text{fill:var(--sai)}
+.n.tou rect{fill:var(--tou-bg);stroke:var(--tou)}.n.tou text{fill:var(--tou)}
+.n.oth rect{fill:var(--oth-bg);stroke:var(--oth)}.n.oth text{fill:var(--oth)}
+.n:focus-visible rect{stroke:var(--focus);stroke-width:3}
+.n.on rect{stroke:var(--accent);stroke-width:3}
+svg.filtering .n.dim{opacity:.22}
+svg.filtering #lines{opacity:.35}
+.ln{stroke:var(--muted);stroke-width:1.2;fill:none}
+.ln.dash{stroke-dasharray:4 4}
+.ln.love{stroke:var(--love);stroke-dasharray:6 4;stroke-width:1.6}
+.lb{font-size:11px;fill:var(--muted)}.lb.love{fill:var(--love)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted)}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:5px;border:1px solid}
+.sw.sai{background:var(--sai-bg);border-color:var(--sai)}.sw.tou{background:var(--tou-bg);border-color:var(--tou)}.sw.oth{background:var(--oth-bg);border-color:var(--oth)}
+/* まとめ */
+.toc{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.toc button{font:inherit;text-align:left;background:none;border:none;border-top:1px solid var(--line);padding:10px 14px;color:var(--ink);cursor:pointer;display:flex;gap:10px}
+.toc button:first-child{border-top:none}
+.toc .no{color:var(--accent);font-family:var(--display);font-weight:700;min-width:3.2em}
+.ch{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px;scroll-margin-top:calc(env(safe-area-inset-top,0px) + 12px);min-width:0}
+.ch.flash{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.ch .no{font-family:var(--display);color:var(--accent);font-size:13px;font-weight:700}
+.ch h3{margin:-8px 0 0;font-family:var(--display);font-size:21px;line-height:1.4}
+.ch h4{margin:4px 0 0;font-size:15px;color:var(--ink);font-family:var(--display)}
+.ch ul{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:8px}
+.ch p{margin:0}
+.chfoot{border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:8px}
+.chfoot .lab{font-size:12px;color:var(--muted)}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:inherit;font-size:14px;font-weight:700;background:var(--ink);color:var(--bg);border:none;border-radius:999px;padding:6px 16px;cursor:pointer;text-decoration:none;display:inline-block}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+button.god,button.place{font:inherit;color:var(--accent);font-weight:700;background:none;border:none;padding:0;cursor:pointer;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
+button.place{color:var(--tou);text-decoration-style:dotted}
+button.place::before{content:"";display:inline-block;width:.55em;height:.55em;border-radius:50%;background:var(--tou);margin-right:.2em;vertical-align:.12em}
+:is(button,a):focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.rel{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:inherit;font-size:13px;background:var(--accent-soft);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:2px 12px;cursor:pointer}
+.chip.k-sai{background:var(--sai-bg);color:var(--sai);border-color:transparent}
+.chip.k-tou{background:var(--tou-bg);color:var(--tou);border-color:transparent}
+.chip.k-oth{background:var(--oth-bg);color:var(--oth);border-color:transparent}
+.chip.k-pl{background:var(--tou-bg);color:var(--tou);border-color:transparent}
+.vs{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+@media (max-width:560px){.vs{grid-template-columns:minmax(0,1fr)}}
+.side{border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px;border:1px solid}
+.side.pro{background:var(--tou-bg);border-color:var(--tou)}.side.con{background:var(--sai-bg);border-color:var(--sai)}
+.side b{font-family:var(--display);font-size:16px}
+.side.pro b{color:var(--tou)}.side.con b{color:var(--sai)}
+.side ol{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px;font-size:15px}
+.eqline{font-family:var(--display);font-size:16px;line-height:2;background:var(--accent-soft);border-radius:10px;padding:8px 12px}
+.flow{display:flex;flex-direction:column;gap:0;border-left:2px solid var(--accent);margin-left:6px}
+.step{position:relative;padding:4px 0 12px 16px;display:flex;flex-direction:column}
+.step::before{content:"";position:absolute;left:-7px;top:12px;width:12px;height:12px;border-radius:50%;background:var(--surface);border:2px solid var(--accent)}
+.step b{font-family:var(--display);color:var(--accent);font-size:15px}
+.step span{font-size:15px}
+/* タブ */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:1000;background:var(--bar);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px);padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
+.tab{flex:1;max-width:200px;font:inherit;font-size:11px;background:none;border:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px 6px;cursor:pointer}
+.tab svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.tab[aria-selected="true"]{color:var(--accent);font-weight:700}
+/* シート */
+.scrim{position:fixed;inset:0;background:var(--scrim);z-index:1100}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:1101;margin:0 auto;max-width:620px;max-height:80vh;background:var(--surface);border-radius:18px 18px 0 0;border:1px solid var(--line);border-bottom:none;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px)}
+.sheet .grab{width:40px;height:5px;border-radius:3px;background:var(--line);margin:8px auto 0;flex:none}
+.shead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:8px 18px 10px;flex:none}
+.shead h3{font-family:var(--display);font-size:23px;margin:0;line-height:1.35}
+.shead .yomi{font-size:13px;color:var(--muted)}
+.close{font:inherit;font-size:14px;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:4px 14px;cursor:pointer;flex:none}
+.sbody{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 18px 20px;display:flex;flex-direction:column;gap:14px}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.kind{font-size:12px;font-weight:700;padding:1px 10px;border-radius:999px;align-self:flex-start;color:#fff;background:var(--muted)}
+.kind.sai{background:var(--sai-bg);color:var(--sai)}.kind.tou{background:var(--tou-bg);color:var(--tou)}.kind.oth{background:var(--oth-bg);color:var(--oth)}
+.blk{border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:6px}
+.blk h4{font-size:12px;letter-spacing:.12em;color:var(--accent);margin:0;font-weight:700}
+.blk ul{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:4px;font-size:15px}
+.blk p{margin:0;font-size:15px}
+.blk .empty{color:var(--muted);font-size:14px}
+.lay{display:flex;flex-direction:column;gap:2px}
+.lay label{display:flex;align-items:center;gap:10px;font-size:15px;padding:4px 0;cursor:pointer}
+.lay input{width:20px;height:20px;accent-color:var(--accent)}
+.lay select{font:inherit;font-size:14px;padding:2px 6px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.prog{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--tou);transition:width .2s}
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:4px;border-bottom:1px solid var(--line)}
+th{font-weight:500;color:var(--muted);font-size:12px}
+td.n{text-align:right;white-space:nowrap}
+@media (prefers-reduced-motion:no-preference){.sheet:not([hidden]){animation:up .22s ease-out}@keyframes up{from{transform:translateY(24px);opacity:.6}to{transform:none;opacity:1}}}
+</style>
+
+<header class="top">
+  <div class="eyebrow">奈良取材 事前資料<span class="status" id="status" hidden></span></div>
+  <h1>かぐや姫の系譜と大和の地図</h1>
+</header>
+
+<main>
+  <section class="view" data-view="map" aria-labelledby="h-map">
+    <h2 id="h-map" class="sr">地図</h2>
+    <div class="mapwrap">
+      <div id="lmap" role="application" aria-label="大和の地図"></div>
+      <div class="mapnote" id="mapnote" hidden></div>
+      <div class="daybar" id="daybar" hidden></div>
+      <div class="mapbtns">
+        <button class="mbtn" id="b-layers">表示</button>
+        <button class="mbtn" id="b-base">地理院地図</button>
+        <button class="mbtn" id="b-save">保存</button>
+      </div>
+    </div>
+    <div class="mfilter" id="presets" role="group" aria-label="表示する範囲"></div>
+    <p class="hint">印をタップすると詳細が出ます。金色の輪が付いた印は、系図の神様のゆかりの地です。印の色は旅程の日ごとの色です。「保存」で地図をiPhoneに保存すると、電波のない山の中でも表示できます。</p>
+  </section>
+
+  <section class="view" data-view="itin" aria-labelledby="h-itin" hidden>
+    <h2 id="h-itin">旅程</h2>
+    <p class="hint">一世ちゃん奈良散歩(10/25版)の旅程です。地名をタップすると地図のその場所に移動します。</p>
+    <div class="filters" id="daychips" role="group" aria-label="日を選ぶ"></div>
+    <div id="itin"></div>
+  </section>
+
+  <section class="view" data-view="tree" aria-labelledby="h-tree" hidden>
+    <h2 id="h-tree" class="sr">系図</h2>
+    <p class="hint">神様をタップすると詳細が出ます。上の章を選ぶと、その章に出てくる神様だけが濃く表示されます。図は横にスクロールできます。</p>
+    <div class="filters" id="filters" role="group" aria-label="章で絞り込む"></div>
+    <p class="fnote" id="fnote" hidden></p>
+    <div class="chart" id="chart">
+      <svg id="tree" viewBox="0 0 760 612" role="img" aria-labelledby="t1 d1">
+        <title id="t1">出雲から大和への系図</title>
+        <desc id="d1">アマテラス・スサノオ・神大市比売から、スセリヒメと大国主、ニギハヤヒと下照姫、御歳神(かぐや姫)、イスケヨリヒメと神武天皇へ続く系図。</desc>
+        <defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round"/></marker></defs>
+        <g id="lines">
+          <line class="ln" x1="150" y1="47" x2="310" y2="47"/>
+          <line class="ln" x1="440" y1="47" x2="600" y2="47"/>
+          <path class="ln" d="M230 47V128" marker-end="url(#ar)"/>
+          <path class="ln" d="M520 47V248" marker-end="url(#ar)"/>
+          <line class="ln" x1="290" y1="157" x2="330" y2="157"/>
+          <path class="ln" d="M310 157V215H220V248" marker-end="url(#ar)"/>
+          <path class="ln" d="M310 215H385V248" marker-end="url(#ar)"/>
+          <path class="ln" d="M630 184V215H590V248" marker-end="url(#ar)"/>
+          <text class="lb" x="596" y="208">忠臣</text>
+          <path class="ln dash" d="M705 184V248"/>
+          <text class="lb" x="712" y="222">妹</text>
+          <line class="ln" x1="120" y1="277" x2="140" y2="277"/>
+          <line class="ln" x1="450" y1="277" x2="480" y2="277"/>
+          <line class="ln" x1="620" y1="277" x2="640" y2="277"/>
+          <path class="ln" d="M130 277V345H85V378" marker-end="url(#ar)"/>
+          <path class="ln" d="M130 345H235V378" marker-end="url(#ar)"/>
+          <path class="ln" d="M465 277V345H390V378" marker-end="url(#ar)"/>
+          <path class="ln" d="M465 345H535V378" marker-end="url(#ar)"/>
+          <path class="ln" d="M630 277V355H680V378" marker-end="url(#ar)"/>
+          <line class="ln" x1="235" y1="434" x2="235" y2="490"/>
+          <text class="lb" x="242" y="466">結婚</text>
+          <path class="ln dash" d="M20 47H10V517H163" marker-end="url(#ar)"/>
+          <path class="ln love" d="M305 517C450 532 535 505 535 437" marker-end="url(#ar)"/>
+          <text class="lb love" x="410" y="548">求婚(かぐや姫は拒み、東北へ)</text>
+        </g>
+        <g id="nodes"></g>
+      </svg>
+    </div>
+    <div class="legend">
+      <span><span class="sw sai"></span>祭祀王の系統</span>
+      <span><span class="sw tou"></span>統治王の系統</span>
+      <span><span class="sw oth"></span>その他</span>
+      <span>横線＝結婚　下向きの線＝親子　点線＝系統</span>
+    </div>
+  </section>
+
+  <section class="view" data-view="read" aria-labelledby="h-read" hidden>
+    <h2 id="h-read">まとめ</h2>
+    <p class="hint">金色のお名前をタップすると神様の詳細、緑の地名をタップすると地図が出ます。各章の最後の「この章を系図で見る」で、登場する神様を系図の上で確かめられます。</p>
+    <nav class="toc" id="toc" aria-label="目次"></nav>
+    <div class="view" id="chapters"></div>
+  </section>
+</main>
+
+<nav class="tabs" role="tablist" aria-label="画面の切り替え">
+  <button class="tab" role="tab" data-tab="map" aria-selected="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>地図</button>
+  <button class="tab" role="tab" data-tab="itin" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4M16 3v4M4 10h16M8 14h4M8 17h7"/></svg>旅程</button>
+  <button class="tab" role="tab" data-tab="tree" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="4" rx="1"/><rect x="3" y="16" width="6" height="4" rx="1"/><rect x="15" y="16" width="6" height="4" rx="1"/><path d="M12 7v4M6 16v-3h12v3"/></svg>系図</button>
+  <button class="tab" role="tab" data-tab="read" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5c3-1 6-1 9 1 3-2 6-2 9-1v14c-3-1-6-1-9 1-3-2-6-2-9-1z"/><path d="M12 6v14"/></svg>まとめ</button>
+</nav>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="s-name" hidden>
+  <div class="grab" aria-hidden="true"></div>
+  <div class="shead"><div><h3 id="s-name"></h3><div class="yomi" id="s-yomi"></div></div><button class="close" id="s-close">閉じる</button></div>
+  <div class="sbody" id="s-body"></div>
+</div>
+
+<script src="maplibre-gl.js"></script>
+<script>
+/* ===== 神様 ===== */
+const G = {
+ amaterasu:{name:"アマテラス",yomi:"天照大御神",kind:"sai",sub:"祭祀王",x:20,y:20,w:130,
+  note:["祭祀王。スサノオと結婚し、スセリヒメが生まれる","「アマテラス」は祭祀王のトップの名でもあり、のちに下照姫が何代目かのアマテラスになる","神武天皇はアマテラスの系統"],
+  kiki:["高天原を治める太陽神。古事記・日本書紀ではスサノオの姉","スサノオとの誓約(うけい)で神々を生む"],
+  rel:["susanoo","suseri","shitateru","jinmu"]},
+ susanoo:{name:"スサノオ",yomi:"素戔嗚尊・須佐之男命",kind:"tou",sub:"出雲系・統治王",x:310,y:20,w:130,
+  note:["出雲の王で、出雲系の統治王","アマテラスと結婚してスセリヒメ、神大市比売と結婚して大年(四男)が生まれる","出雲は末子相続だったため、スセリヒメが家督を継ぐ。これで秦氏と対立し、大年との関係も悪化"],
+  kiki:["ヤマタノオロチを退治し、出雲の須賀に宮を建てる","古事記では神大市比売を妻とし、大年神と宇迦之御魂神が生まれる"],
+  rel:["amaterasu","kamuoichi","suseri","nigihayahi"]},
+ kamuoichi:{name:"神大市比売",yomi:"カムオオイチヒメ",kind:"sai",sub:"秦氏・祭祀王",x:600,y:20,w:140,
+  note:["ツクヨミ族(秦氏)の祭祀王。ツクヨミの末裔で、ユダヤ系レビ族の祭祀王、弓月君の系統","秦氏は、その子どもがスサノオの跡を継ぐはずと考えて嫁がせたが、末子相続でスセリヒメが家督を継いだため「約束と違う」と怒り、大和へ連れ戻した","出雲を裏切って大和に下ったこの罪が、孫のかぐや姫(御歳神)の原罪とされる"],
+  kiki:["古事記では大山津見神(オオヤマツミノカミ)の娘","スサノオとの間に大年神と宇迦之御魂神(ウカノミタマノカミ)を生む"],
+  rel:["susanoo","nigihayahi","mitoshi"]},
+ suseri:{name:"スセリヒメ",yomi:"須勢理毘売命",kind:"sai",sub:"出雲の祭祀王",x:160,y:130,w:130,
+  note:["スサノオとアマテラスの娘","出雲は末子相続だったため、スセリヒメが家督を継ぎ、出雲の祭祀王になる","大国主と結婚し、祭祀王スセリヒメ・統治王大国主の体制ができる"],
+  kiki:["古事記ではスサノオの娘で、大国主の正妻","根の国でスサノオが大国主に課した試練を助ける"],
+  rel:["amaterasu","susanoo","okuninushi","ajisuki","shitateru"]},
+ okuninushi:{name:"大国主",yomi:"オオナムジ",kind:"tou",sub:"出雲の統治王",x:330,y:130,w:120,
+  note:["シュメール人のオオナムジ(大名持)","スセリヒメと結婚し、出雲の統治王になる"],
+  kiki:["大穴牟遅神とも。因幡の白兎、根の国の試練、国作りと国譲りの神話で知られる"],
+  rel:["suseri","ajisuki","shitateru"]},
+ nagasune:{name:"長髄彦",yomi:"ナガスネヒコ",kind:"oth",sub:"元大和王",x:600,y:130,w:140,
+  note:["ニギハヤヒが来る前に大和を治めていた王","出雲から来た大年(ニギハヤヒ)に制圧され、家来(忠臣)になる","政略結婚の反対派として、かぐや姫を軍事面で支える"],
+  kiki:["鳥見(奈良市富雄〜生駒市北部)の豪族。古事記では登美能那賀須泥毘古(トミノナガスネビコ)、登美毘古(トミビコ)とも","日本書紀によると「長髄」はもともと村の名","孔舎衛坂(くさえのさか)で神武軍を破り、五瀬命(イツセノミコト：神武天皇の兄)を死なせた","再戦では金色の鵄が神武の弓に止まり、長髄彦軍の目をくらませた。日本書紀は、鳥見の地名をこの鵄の話と結びつけている","妹の登美夜毘売(トミヤヒメ。日本書紀では三炊屋媛)はニギハヤヒの妻で、ウマシマジの母","日本書紀では、神武に帰順したニギハヤヒに討たれる"],
+  oral:["東北にルーツを持つ古代出雲族の王で、龍蛇神(水・岩に宿る神)を信仰していた(出雲口伝)","竹内文書では徐福の子孫とされる。秦氏と出雲族の婚姻による融合で、両方の説が両立するという解釈もある","敗れて東北へ逃れ、蝦夷・アラハバキにつながったとされる。『東日流外三郡誌』では兄の安日彦とともに、『曽我物語』真名本では「鬼」の一族として語られる。安倍氏の系図には安日彦が祖先とある","東北へ逃れた人々が北上の国を作り「鬼」と呼ばれたとも語られる。岩手の地名を鬼の手形(岩の手)と結ぶ語源説もある","別名の「登美彦」は、富雄の旧地名「登美」と同じ地名にもとづく名"],
+  rel:["nigihayahi","imouto","mitoshi","jinmu"]},
+ tamayori:{name:"玉依姫",yomi:"タマヨリヒメ",kind:"oth",sub:"",x:20,y:250,w:100,
+  note:["アジスキタカヒコネの妻","賀茂別雷命とイスケヨリヒメの母"],
+  kiki:["山城国風土記では玉依日売。川で拾った丹塗矢によって賀茂別雷命を生む","賀茂の伝承では賀茂建角身命(＝八咫烏)の娘で、ノートの「夫婦」とは異なる"],
+  rel:["ajisuki","kamowake","isukeyori"]},
+ ajisuki:{name:"アジスキタカヒコネ",yomi:"阿遅鉏高日子根神",kind:"tou",sub:"事代主・八咫烏",x:140,y:250,w:160,
+  note:["大国主とスセリヒメの子で、出雲の統治王","事代主(コトシロヌシ)＝アジスキタカヒコネ＝八咫烏","ニギハヤヒの晩年、ウマシマジとともに大和の実権を握る","政略結婚の推進派。大和を捨てて八咫烏となり神武軍を支え、裏天皇化していく"],
+  kiki:["古事記では大国主と多紀理毘売(タキリビメ)の子で、下照比売の兄","迦毛大御神(カモノオオミカミ)とも呼ばれる","事代主は大国主の子で、日本書紀ではイスケヨリヒメの父"],
+  rel:["okuninushi","suseri","tamayori","kamowake","isukeyori","umashimaji"]},
+ shitateru:{name:"下照姫",yomi:"シタテルヒメ",kind:"sai",sub:"高照姫・瀬織津姫",x:320,y:250,w:130,
+  note:["スサノオ・アマテラス側の長","ニギハヤヒと結婚し、3つの支族がまとまって大和(大きな和)ができる","結婚後に高照姫と改名し、瀬織津姫の役職に就き、市杵島姫の称号を得る。何代目かのアマテラスになった","香用比売(カグヨヒメ)とも","戦乱を予見し、娘のかぐや姫をツクヨミの国へ逃がす"],
+  kiki:["古事記では大国主と多紀理毘売の娘で、天若日子(アメノワカヒコ)の妻","別名は高比売命(タカヒメノミコト)","古事記では大年神の妻に香用比売の名がある"],
+  rel:["suseri","okuninushi","nigihayahi","mitoshi","amenokagu","takaokami"]},
+ nigihayahi:{name:"ニギハヤヒ",yomi:"もとは大年(オオトシ)",kind:"tou",sub:"のち大和の統治王",x:480,y:250,w:140,
+  note:["スサノオと神大市比売の四男、大年","出雲を離れて長髄彦の大和を制圧し、ニギハヤヒに改名","ツクヨミの長で、レビ族の統治王。アメノホアカリとも","下照姫と結婚して大和をまとめる","病の晩年、神武天皇とかぐや姫の政略結婚を計画"],
+  kiki:["大年神は古事記で穀物の神。子に御年神がいる","饒速日命は天磐船で降り、長髄彦の妹の登美夜毘売を妻としてウマシマジが生まれる。物部氏の祖","日本書紀では神武に帰順し、長髄彦を討つ","先代旧事本紀では天火明命と同一とされる"],
+  rel:["susanoo","kamuoichi","nagasune","shitateru","imouto","mitoshi","amenokagu","umashimaji"]},
+ imouto:{name:"登美夜毘売",yomi:"トミヤヒメ",kind:"oth",sub:"長髄彦の妹",x:640,y:250,w:100,
+  note:["長髄彦の妹","ニギハヤヒの妻で、ウマシマジの母"],
+  kiki:["古事記では登美夜毘売、日本書紀では三炊屋媛(ミカシキヤヒメ)","神社によっては御炊屋姫命(ミカシキヤヒメノミコト)の名で祀られる"],
+  rel:["nagasune","nigihayahi","umashimaji"]},
+ kamowake:{name:"賀茂別雷命",yomi:"カモワケイカヅチノミコト",kind:"oth",sub:"のちの賀茂氏",x:20,y:380,w:130,
+  note:["アジスキタカヒコネと玉依姫の子","のちの賀茂氏で、裏天皇につながる"],
+  kiki:["山城国風土記では、玉依日売が川で拾った丹塗矢から生まれる","イスケヨリヒメの誕生にも丹塗矢の話があり、ノートでは2人が兄弟になる"],
+  rel:["ajisuki","tamayori","isukeyori"]},
+ isukeyori:{name:"イスケヨリヒメ",yomi:"ヒメタタライスズヒメ",kind:"oth",sub:"神武天皇の皇后",x:165,y:380,w:140,
+  note:["アジスキタカヒコネと玉依姫の娘","推進派の父が神武天皇に嫁がせ、一族は新しい大和で地位を固める","本来の妃候補だったかぐや姫の代わりともいえる立場"],
+  kiki:["古事記では比売多多良伊須気余理比売。父は大物主神で、丹塗矢に姿を変えて母のもとへ通った","日本書紀では媛蹈鞴五十鈴媛命。父は事代主神、母は玉櫛媛","神武天皇との子が第2代綏靖天皇","お名前の「タタラ」は製鉄を思わせる"],
+  rel:["ajisuki","tamayori","kamowake","jinmu"]},
+ amenokagu:{name:"天香久山命",yomi:"アメノカグヤマノミコト",kind:"oth",sub:"高倉下・大山咋神",x:330,y:380,w:120,
+  note:["ニギハヤヒと下照姫の子","高倉下(タカクラジ)、大山咋神(オオヤマクイノカミ)、大香具山戸臣神とも"],
+  kiki:["高倉下は、神武東征で布都御魂剣(フツノミタマノツルギ)を届けた。この剣は石上神宮に祀られる","先代旧事本紀では天香語山命はニギハヤヒ(天火明命)の子で、尾張氏の祖","大山咋神は古事記では大年神の子"],
+  rel:["nigihayahi","shitateru","mitoshi"]},
+ mitoshi:{name:"御歳神",yomi:"ミトシノカミ",kind:"sai",sub:"かぐや姫・祭祀王",x:470,y:380,w:130,
+  note:["ニギハヤヒと下照姫の子で、大和の祭祀王","香具山の姫、つまりかぐや姫。天香具山で祭祀を行っていた","祖母の神大市比売が出雲を裏切って大和に下った罪を、原罪として引き継ぐ","神武天皇との政略結婚を拒み、母の計らいで東北の月氏のもとに身を隠す","飛騨一宮水無神社の主祭神。御歳神＝水無神＝水成神＝水の主＝川の神＝市杵島姫"],
+  kiki:["古事記では御年神。大年神と香用比売の子","穀物、とくに稲の実りの神"],
+  rel:["nigihayahi","shitateru","kamuoichi","jinmu","kushimachi","takaokami"]},
+ umashimaji:{name:"ウマシマジ",yomi:"宇摩志麻遅命",kind:"oth",sub:"母は登美夜毘売",x:620,y:380,w:120,
+  note:["ニギハヤヒと登美夜毘売(長髄彦の妹)の子","ニギハヤヒの晩年、アジスキタカヒコネとともに大和の実権を握る","政略結婚の推進派"],
+  kiki:["物部氏の祖。神武天皇に帰順する"],
+  rel:["nigihayahi","imouto","ajisuki"]},
+ jinmu:{name:"神武天皇",yomi:"カムヤマトイワレビコ",kind:"oth",sub:"初代天皇",x:165,y:490,w:140,
+  note:["アマテラスの系統","かぐや姫に求婚するが、かぐや姫は拒んで東北へ","八咫烏(アジスキタカヒコネ)の支えを受け、イスケヨリヒメと結婚"],
+  kiki:["日向から大和へ東征。孔舎衛坂で長髄彦に敗れ、熊野へ回る","八咫烏の導きで熊野から大和に入り、金鵄の助けで長髄彦を破る","橿原宮で即位した初代天皇"],
+  rel:["amaterasu","isukeyori","mitoshi","ajisuki","nagasune"]},
+ kushimachi:{name:"櫛真智命",yomi:"クシマチノミコト",kind:"oth",sub:"占いの神",chart:false,
+  note:["天香具山神社の祭神で、占いの神","占いの神＝祭祀王＝女神＝香具山の姫。かぐや姫とつながる"],
+  kiki:["天香山坐櫛真命神社(天香山神社)の祭神。太占(ふとまに)の神とされる"],
+  rel:["mitoshi"]},
+ takaokami:{name:"高龗神",yomi:"タカオカミノカミ",kind:"oth",sub:"龍神",chart:false,
+  note:["天香具山の山頂に祀られる龍神","高龗神＝瀬織津姫"],
+  kiki:["水と雨をつかさどる龍神。闇龗神(クラオカミノカミ)と対になる"],
+  rel:["shitateru","mitoshi"]}
+};
+
+/* ===== まとめの章 ===== */
+const r=(id,label)=>`<button class="god" data-id="${id}">${label||G[id].name}</button>`;
+const pl=(id,label)=>`<button class="place" data-place="${id}">${label}</button>`;
+const CH=[
+ {id:"c1",short:"系図の骨格",title:"系図の骨格",gods:["susanoo","amaterasu","kamuoichi","nigihayahi","suseri","okuninushi"],html:()=>`<ul>
+  <li>${r("susanoo")}(出雲系の統治王)には、2人の妻がいます。祭祀王の${r("amaterasu")}と、秦氏の祭祀王である${r("kamuoichi")}(カムオオイチヒメ)です。神大市比売はツクヨミの末裔で、ユダヤ系レビ族の祭祀王、弓月君の系統とされます。</li>
+  <li>${r("nigihayahi","大年")}(オオトシ)は、スサノオと神大市比売の間に生まれた四男です。</li>
+  <li>スサノオとアマテラスの娘が${r("suseri")}です。末子相続により、スセリヒメが出雲の祭祀王になりました。</li>
+  <li>スセリヒメは、シュメール人のオオナムジ(${r("okuninushi")})と結婚しました。これにより出雲は、祭祀王がスセリヒメ、統治王が大国主という体制になります。</li></ul>`},
+ {id:"c2",short:"出雲から大和へ",title:"出雲から大和へ",gods:["kamuoichi","suseri","susanoo","nigihayahi","nagasune"],html:()=>`<ul>
+  <li>秦氏(ツクヨミ族)は、${r("kamuoichi")}(カムオオイチヒメ)を出雲の王である${r("susanoo","素戔嗚尊")}(スサノオ)に嫁がせました。その子どもがスサノオの跡を継ぐことになるはずだったが、出雲は末子相続だったため、アマテラスとの娘である${r("suseri")}が家督を継ぎます。秦氏は「約束と違う」と怒り、神大市比売を大和へ連れ戻しました。</li>
+  <li>これをきっかけに、スサノオと${r("nigihayahi","大年")}の関係が悪化します。大年は出雲を離れ、${r("nagasune")}(ナガスネヒコ)が治める大和へ向かいました。</li>
+  <li>大年は大和を制圧し、長髄彦を家来にして、お名前を${r("nigihayahi")}に改めました。</li></ul>`},
+ {id:"c3",short:"大和の誕生",title:"「大和」の誕生",gods:["nigihayahi","shitateru","amenokagu","mitoshi","umashimaji","imouto","ajisuki"],html:()=>`<ul>
+  <li>ツクヨミ族の長である${r("nigihayahi")}と、スサノオ・アマテラス側の長である${r("shitateru")}(シタテルヒメ)が結婚します。こうして3つの支族がまとまってできたのが「大きな和」、すなわち大和です。</li>
+  <li>下照姫は結婚後に高照姫と改名し、瀬織津姫(セオリツヒメ)という役職に就きました。さらに、国のトップを表す市杵島姫(イチキシマヒメ)の称号を得ています。</li>
+  <li>祭祀王のトップとなった下照姫は、何代目かの「アマテラス」になりました。アマテラスの荒御魂が瀬織津姫といわれるのは、このためです。</li>
+  <li>2人の子は、${r("amenokagu")}(高倉下・大山咋神・大香具山戸臣神とも)と、${r("mitoshi")}(ミトシノカミ)です。御歳神は大和の祭祀王で、香具山の姫、つまり「かぐや姫」にあたります。</li>
+  <li>ニギハヤヒと、長髄彦の妹の${r("imouto")}(トミヤヒメ)の子が、${r("umashimaji")}です。ニギハヤヒの晩年、大和の実権はウマシマジと${r("ajisuki")}が握っていました。</li></ul>`},
+ {id:"c4",short:"竹取物語の正体",title:"竹取物語の正体",gods:["nigihayahi","jinmu","mitoshi","umashimaji","ajisuki","isukeyori","kamowake","tamayori","nagasune","shitateru"],html:()=>`
+  <p>病に伏した${r("nigihayahi")}は晩年、${r("jinmu")}(カムヤマトイワレビコ、つまり「帝」)と、${r("mitoshi","御歳神(かぐや姫)")}を政略結婚させようとしました。</p>
+  <div class="vs">
+   <div class="side pro"><b>政略結婚の推進派</b><div class="rel">${chip("umashimaji")}${chip("ajisuki")}</div>
+    <ol><li>大和を捨てて八咫烏となり、イワレビコ(神武)軍を支える</li><li>娘の${r("isukeyori")}を神武天皇に嫁がせ、新しい大和でも地位を確立</li><li>裏天皇化していく</li></ol></div>
+   <div class="side con"><b>政略結婚の反対派</b><div class="rel">${chip("mitoshi")}${chip("nagasune")}</div>
+    <ol><li>長髄彦が軍事面でかぐや姫を支える</li><li>余命わずかのニギハヤヒのもとで、${r("shitateru")}はこれから戦乱の世になると予想し、娘をツクヨミの国へ逃がす</li><li>かぐや姫は東北で、ツクヨミ＝秦氏の中の「月氏(がっし)」のもとに身を隠す</li></ol></div>
+  </div>
+  <ul><li>事代主(コトシロヌシ)＝${r("ajisuki")}＝八咫烏です。</li>
+  <li>アジスキタカヒコネと${r("tamayori")}の子が${r("kamowake")}(カモワケイカヅチノミコト)で、のちの賀茂氏、裏天皇につながります。</li></ul>`},
+ {id:"c5",short:"受け継がれる役職と罪",title:"受け継がれる役職と罪",gods:["kamuoichi","susanoo","nigihayahi","mitoshi"],html:()=>`<ul>
+  <li>神様は、役職を引き継ぐことが多くあります。祭祀王に生まれれば、その子どもも祭祀王になる、といった具合です。</li>
+  <li>引き継がれるのは役職だけではありません。「罪」もまた引き継がれます。</li>
+  <li>${r("susanoo","スサノオ")}(出雲国)に嫁いでいた${r("kamuoichi","神大市比売命")}は、出雲を裏切って大和に下りました。この罪こそが、孫である${r("mitoshi","かぐや姫＝御歳神")}の原罪とされています。</li></ul>
+  <div class="flow">
+   <div class="step"><b>罪</b><span>神大市比売が出雲を裏切り、大和へ下る</span></div>
+   <div class="step"><b>引き継ぎ</b><span>神大市比売に連なる祭祀王(女性)の子どもたちが、罪・穢れを肩代わりする</span></div>
+   <div class="step"><b>下界へ</b><span>現世に降りる(出雲国から大和へ下る)</span></div>
+   <div class="step"><b>天上へ帰る</b><span>役目を終えて神格化・再生する(ツクヨミ族・秦氏に縁のある東北地方、月氏が住む地へ落ち延びる)</span></div>
+  </div>
+  <p>かぐや姫が「罪を犯して地上に落とされた」という竹取物語の設定は、この古代の信仰儀礼がベースになっています。</p>`},
+ {id:"c6",short:"長髄彦と奈良",title:"長髄彦と奈良",gods:["nagasune","jinmu","nigihayahi","imouto","umashimaji"],html:()=>`<ul>
+  <li>${r("nagasune")}の本拠は、奈良盆地の北西、生駒山のふもとの${pl("tomi","鳥見(富雄)")}とされます。</li>
+  <li>${r("jinmu","神武軍")}は${pl("kusae","孔舎衛坂")}で長髄彦に敗れ、兄の五瀬命(イツセノミコト)を失って、熊野を回って再び大和に入ります。</li>
+  <li>決戦の鍵は金鵄の話です。金色の鵄が神武の弓に止まり、長髄彦軍の目をくらませました。日本書紀は、鳥見(とみ)の地名をこの話と結びつけています。</li>
+  <li>長髄彦は「天つ神の子は2人もいない」と神武に迫ります。しかし、仕えていた${r("nigihayahi")}が神武に従い、長髄彦を討ちました。</li>
+  <li>長髄彦は、かぐや姫の反対派と同じく大和政権に敗れた側です。龍蛇神を祀る出雲系の王とされ、東北へ逃れたと言われています。</li></ul>
+  <h4>鳥見の三つの鎮守と長髄彦の地</h4>
+  <ul><li>${pl("tomi-jinja","登彌神社")}は下鳥見の鎮守で、祭神に登美饒速日命(ニギハヤヒ)を含みます。</li>
+  <li>${pl("p-添御縣坐神社","添御縣坐神社")}は中鳥見の鎮守です。地元の言い伝えでは、本当の祭神は長髄彦とされます。</li>
+  <li>${pl("izanagi-ikoma","伊弉諾神社")}は上鳥見の鎮守です。</li>
+  <li>生駒市白庭台の住宅地には、本拠跡とされる${pl("nagasune-hi","長髄彦の碑")}があります。</li></ul>
+  <h4>富雄丸山古墳</h4>
+  <ul><li>長髄彦の地にある${pl("maruyama","富雄丸山古墳")}は、直径約109mの日本最大の円墳で、築造は4世紀後半と推測されています。</li>
+  <li>蛇行剣は刀身が約237cm、装具を含めると約285cm。実戦用ではなく儀式用とされ、全国で約80本ある蛇行剣のうち最古です。</li>
+  <li>鼉龍文盾形銅鏡は長さ約64cm・幅約31cmで、鏡面の大きさは出土した古代の銅鏡で最大です。</li>
+  <li>被葬者はわかっていません。王権直属の有力豪族か、王権と距離のあった豪族かが論点とされます。</li></ul>`},
+ {id:"c7",short:"天香具山と飛騨一宮",title:"天香具山と飛騨一宮",gods:["mitoshi","shitateru"],extra:["kushimachi","takaokami"],html:()=>`<ul>
+  <li>${pl("p-天香山神社","天香具山神社")}の祭神は、占いの神である${r("kushimachi")}(クシマチノミコト)です。かぐや姫は${pl("m-kagu","天香具山")}で祭祀を行っていました。</li></ul>
+  <p class="eqline">占いの神 ＝ 祭祀王 ＝ 女神 ＝ 香具山の姫</p>
+  <ul><li>天香具山の山頂には、龍神の${r("takaokami")}(タカオカミノカミ)が祀られています。</li>
+  <li>飛騨一宮水無神社のご神体は位山(くらいやま)で、神が最初に降り立った所とされます。主祭神は${r("mitoshi")}です。</li></ul>
+  <p class="eqline">御歳神 ＝ 水無神 ＝ 水成神 ＝ 水の主 ＝ 川の神 ＝ 市杵島姫<br>龍神 ＝ 高龗神 ＝ 瀬織津姫(${r("shitateru")})</p>`},
+ {id:"c8",short:"ノートと記紀",title:"ノートと記紀を重ねると",gods:["nigihayahi","shitateru","mitoshi","amenokagu","ajisuki"],html:()=>`
+  <ul>
+  <li>古事記では、${r("nigihayahi","大年神")}の妻の一人が香用比売で、2人の子が御年神です。ノートの「${r("shitateru")}＝香用比売」「${r("mitoshi")}はニギハヤヒ(大年)と下照姫の子」と重なります。</li>
+  <li>古事記では、大山咋神も大年神の子です。ノートでは大山咋神は${r("amenokagu")}の別名で、やはり大年(ニギハヤヒ)の子です。</li>
+  <li>違う点として、古事記では下照比売と${r("ajisuki")}の母は多紀理毘売です。ノートでは2人ともスセリヒメの子になっています。</li>
+  </ul>`}
+];
+
+
+/* ===== 地図のデータ(位置はWikipedia・国土地理院などの座標。approx は推定位置) ===== */
+const LAT0=34.55, LON0=135.80, KX=91.75, KY=110.95;
+const DAYC=['','--day1','--day2','--day3','--day4','--day5'];
+const DAYL=['','1日目 11/25','2日目 11/26','3日目 11/27','4日目 11/28','5日目 11/29'];
+const capitals=[
+ {id:'heijo',name:'平城京',sub:'平城宮 第一次大極殿',lat:34.6914,lon:135.7966,rect:[[34.698,135.785],[34.660,135.823]],geky:[[34.698,135.823],[34.674,135.841]],note:'710–784年の都。真東に御蓋山(春日山)を望む。'},
+ {id:'fujiwara',name:'藤原京',sub:'藤原宮 大極殿跡',lat:34.50222,lon:135.80722,rect:[[34.526,135.778],[34.478,135.836]],note:'694–710年の都。大和三山(畝傍山・耳成山・天香久山)に囲まれた位置にある。'},
+ {id:'asuka',name:'飛鳥宮',sub:'伝飛鳥板蓋宮跡',lat:34.47326,lon:135.82129,rect:[[34.4762,135.8193],[34.4702,135.8233]],note:'飛鳥時代の宮が重ねて営まれた地(飛鳥板蓋宮・飛鳥浄御原宮など)。'}
+];
+const mountains=[
+ {id:'mikasa',name:'御蓋山',alt:'三笠山・春日山',h:283,lat:34.68145,lon:135.85264,sacred:1,note:'春日大社の背後の神体山。若草山も「三笠山」と呼ばれることがある。'},
+ {id:'wakakusa',name:'若草山',h:342,lat:34.69103,lon:135.85419,minor:1,note:'別名 三笠山。御蓋山の北隣。'},
+ {id:'furu',name:'布留山',h:266,lat:34.6005,lon:135.8600,sacred:1,approx:1,note:'石上神宮の背後の山。'},
+ {id:'miwa',name:'三輪山',h:467,lat:34.53500,lon:135.86694,sacred:1,note:'大神神社の御神体山。'},
+ {id:'unebi',name:'畝傍山',h:199,lat:34.49262,lon:135.78473,sanzan:1,note:'大和三山。藤原京の西。'},
+ {id:'miminashi',name:'耳成山',h:140,lat:34.51477,lon:135.80536,sanzan:1,note:'大和三山。藤原京の北。'},
+ {id:'kagu',name:'天香久山',h:152,lat:34.49570,lon:135.81837,sanzan:1,gods:['mitoshi','amenokagu','takaokami'],note:'大和三山。藤原京の東。香具山の姫＝かぐや姫が祭祀を行った山。山頂に國常立神社・龍王社。'},
+ {id:'nijo',name:'二上山',h:517,lat:34.52258,lon:135.67582,west:1,note:'雄岳・雌岳の二峰。大和盆地から見て西。雄岳山頂に葛木二上神社。'},
+ {id:'katsuragi',name:'葛城山',h:959,lat:34.45611,lon:135.68222,west:1,note:'大和葛城山。大和盆地の西の壁。麓に葛城三社。'},
+ {id:'kongo',name:'金剛山',h:1125,lat:34.41944,lon:135.67306,west:1,note:'葛城連峰の最高峰。'},
+ {id:'ikoma',name:'生駒山',h:642,lat:34.67845,lon:135.67897,west:1,note:'大和と河内の境の山。東のふもとが長髄彦の本拠とされる鳥見(富雄)、西のふもとに孔舎衛坂と石切劔箭神社。'}
+];
+const key=[
+ {name:'春日大社',lat:34.68146,lon:135.84868,mt:'mikasa',note:'背後に御蓋山。平城京の東。',kami:['武甕槌命','経津主命','天児屋根命','比売神'],sub:['大宮(御本殿特別参拝 ¥700)','若宮']},
+ {name:'石上神宮',lat:34.59806,lon:135.85250,mt:'furu',note:'背後に布留山。物部氏の氏神。高倉下が神武に届けた布都御魂剣を祀る。',gods:['umashimaji','amenokagu'],kami:['布都御魂大神','布留御魂大神','布都斯魂大神'],sub:['摂社 出雲建雄神社(草薙剣荒魂)','祓戸神社','猿田彦神社','天神社','七座社']},
+ {name:'大神神社',lat:34.52889,lon:135.85278,mt:'miwa',note:'三輪山が御神体。大物主神は、古事記でイスケヨリヒメの父とされる。',gods:['isukeyori'],kami:['大物主神'],sub:['磐座神社(少彦名神)','狭井神社・御神水(三輪の神の荒魂)','市杵島姫神社','きよめの滝','辰五郎大明神','辺津磐座(山ノ神祭祀遺跡)','貴船神社','八大竜王 辯財天 大神 龗神神社 遙拝所']},
+ {name:'鴨都波神社',tag:'葛城三社・下鴨社',lat:34.45998,lon:135.73345,gods:['ajisuki','shitateru'],kami:['積羽八重事代主命','下照比売命','建御名方命'],note:'葛城三社のうち下鴨社。'},
+ {name:'葛木御歳神社',tag:'葛城三社・中鴨社',lat:34.42268,lon:135.72155,gods:['mitoshi','nigihayahi','shitateru'],kami:['御歳神','大年神','高照姫命'],note:'葛城三社のうち中鴨社。かぐや姫(御歳神)と、父の大年神(ニギハヤヒ)、母の高照姫(下照姫)がそろって祀られる。'},
+ {name:'高鴨神社',tag:'葛城三社・上鴨社',lat:34.40823,lon:135.70768,gods:['ajisuki','shitateru'],kami:['阿遅志貴高日子根命','事代主命','阿治須岐速雄命','下照姫命・天稚彦命'],note:'葛城三社のうち上鴨社。'}
+];
+/* 奈良散歩の地点(dは日、表示色に使う) */
+const trip=[
+ {d:1,name:'佐久奈度神社',lat:34.91150,lon:135.90906,pref:'滋賀',kami:['瀬織津姫','速開津比売','気吹戸主神','速佐須良比売神'],sub:['焼鎌神社・敏鎌神社'],note:'滋賀県大津市。祓戸四神。',gods:['shitateru']},
+ {d:1,name:'磐船神社',lat:34.74767,lon:135.69399,pref:'大阪',kami:['天照国照彦天火明櫛玉饒速日命'],note:'大阪府交野市。ニギハヤヒが天磐船で降りた地とされる。岩窟拝観 ¥600。',gods:['nigihayahi']},
+ {d:1,name:'添御縣坐神社',yomi:'そうのみあがたにいますじんじゃ',lat:34.6933,lon:135.7262,approx:1,kami:['天照国照彦天火明櫛玉饒速日命','長髄彦'],note:'奈良市三碓。中鳥見の鎮守。地元の言い伝えでは、本当の祭神は長髄彦とされる。',gods:['nigihayahi','nagasune']},
+ {d:1,name:'石上神社',lat:34.5965,lon:135.8710,approx:1,kami:['石上大神'],note:'天理市。桃尾の滝の近く。'},
+ {d:1,name:'桃尾の瀧',lat:34.59783,lon:135.87427,kind:'site'},
+ {d:2,name:'山邊御縣坐神社',yomi:'やまのべのみあがたにますじんじゃ',lat:34.58589,lon:135.81665,approx:1,kami:['建麻利根命(饒速日六世孫)']},
+ {d:2,name:'八つ岩',lat:34.6058,lon:135.8768,approx:1,kind:'site',note:'林道。大国見山の山頂近く。'},
+ {d:2,name:'葛木倭文坐天羽雷命神社',yomi:'かつらきしとりにいますあめのはいかづちのみことじんじゃ',lat:34.53165,lon:135.68572,kami:['天羽雷命'],sub:['加守神社(天忍人命)'],note:'葛城市加守。二上山の麓。'},
+ {d:2,name:'葛木二上神社',lat:34.52258,lon:135.67582,kami:['豊布都霊神'],note:'二上山 雄岳の山頂。'},
+ {d:2,name:'神下山 高貴寺',lat:34.49943,lon:135.66269,kind:'temple',pref:'大阪',note:'大阪府河南町平石。'},
+ {d:2,name:'磐船大神社(栂の宮)',yomi:'いわふねだいじんじゃ とがのみや',lat:34.4975,lon:135.6715,approx:1,pref:'大阪',kami:['饒速日命 外十柱'],sub:['摂社 豊受大神 外五柱'],note:'大阪府河南町平石。',gods:['nigihayahi']},
+ {d:2,name:'村屋坐彌冨都比賣神社',yomi:'むらやにいますみふつひめじんじゃ',lat:34.54824,lon:135.81784,kami:['三穂津姫命'],sub:['村屋神社(経津主神・室屋大連神)','服部神社(天之御中主神)','久須々美神社(天之久之比神・事代主神)','物部神社(御炊屋姫命・物部守屋大連)'],note:'田原本町蔵堂。境内の物部神社に、登美夜毘売(御炊屋姫命)が祀られる。',gods:['imouto']},
+ {d:2,name:'纒向遺跡',lat:34.54606,lon:135.84020,kind:'site',note:'伊勢様式と出雲様式。'},
+ {d:2,name:'箸墓古墳',lat:34.53920,lon:135.84140,kind:'site',note:'倭迹迹日百襲姫命 大市墓 拝所。卑弥呼の陵墓説。'},
+ {d:2,name:'檜原神社',lat:34.53840,lon:135.85472,kami:['天照大御神'],note:'元伊勢。春分・秋分には真西の二上山の間に日が沈むことで知られる。',gods:['amaterasu']},
+ {d:2,name:'綱越神社',yomi:'おんぱらさん',lat:34.52795,lon:135.84328},
+ {d:2,name:'大直禰子神社',lat:34.53049,lon:135.85034},
+ {d:3,name:'飛鳥坐神社',lat:34.47969,lon:135.82272,kami:['八重事代主命','下照姫命','高照光姫命'],note:'奉納(10:30–12:00)。夜間参拝も予定。',gods:['ajisuki','shitateru']},
+ {d:3,name:'亀形石造物・酒船石',lat:34.47560,lon:135.82330,kind:'site'},
+ {d:3,name:'石舞台古墳',lat:34.46679,lon:135.82615,kind:'site',note:'¥500。〜17:00。近くに玉藻橋。'},
+ {d:3,name:'飛鳥川上坐宇須多岐比売命神社',yomi:'あすかかわかみにいますうすたきひめのみこと',lat:34.4475,lon:135.8240,approx:1,kami:['高皇産霊神'],note:'明日香村稲渕。'},
+ {d:3,name:'等彌神社',lat:34.50647,lon:135.85397,kami:['大日霊貴命(上津尾社)','磐余明神(下津尾社右殿)','高皇産霊神(下津尾社左殿)'],note:'鳥見山の麓。神武天皇初大嘗祭の地とされる。',gods:['jinmu']},
+ {d:4,name:'國常立神社',lat:34.49570,lon:135.81837,kami:['國常立命'],sub:['伊弉諾神社(上の御前)','伊弉冊神社(下の御前)','龍王社(高龗神)'],note:'天香久山の山頂。',gods:['takaokami']},
+ {d:4,name:'天岩戸神社',lat:34.4930,lon:135.8195,approx:1,note:'天香久山の南のふもと。'},
+ {d:4,name:'天香山神社',lat:34.49725,lon:135.81831,kami:['櫛真智命神'],note:'占いの神を祀る。',gods:['kushimachi','mitoshi']},
+ {d:4,name:'益田岩船',lat:34.47053,lon:135.78869,kind:'site'},
+ {d:4,name:'キトラ古墳',lat:34.45082,lon:135.80523,kind:'site',note:'壁画体験館 四神の館。'},
+ {d:4,name:'高天彦神社',lat:34.41806,lon:135.69594,kami:['高皇産霊神','市杵島姫命','菅原道真'],note:'金剛山の中腹、高天原伝承の地。'},
+ {d:4,name:'丹生川上神社下社',lat:34.30611,lon:135.80333,kami:['闇龗神'],note:'下市町長谷。天香具山の高龗神と対になる龍神を祀る。',gods:['takaokami']},
+ {d:4,name:'天河大辨財天社',lat:34.22333,lon:135.84166,kami:['市杵島姫命','熊野坐大神','吉野坐大神','南朝四代天皇の御霊'],sub:['禊殿'],note:'4日目夜間参拝、5日目朝に御祈祷・禊殿。市杵島姫は、ノートでは下照姫の称号で、御歳神とも同じとされる。',gods:['shitateru','mitoshi']},
+ {d:5,name:'舟岡山 来迎院',lat:34.2215,lon:135.8380,approx:1,kind:'temple'},
+ {d:5,name:'金峯山寺 蔵王堂',lat:34.36825,lon:135.85817,kind:'temple',note:'国軸山。日本最大の秘仏本尊特別ご開帳・長日祈願護摩供。'},
+ {d:5,name:'室生龍穴神社',lat:34.53492,lon:136.04750},
+ {d:5,name:'吉祥龍穴',lat:34.5310,lon:136.0550,approx:1,kind:'site'},
+ {d:5,name:'龍鎮神社',lat:34.5600,lon:136.0310,approx:1}
+];
+/* 宿 */
+const stays=[
+ {id:'s-tenri',name:'東横イン天理駅前',lat:34.60125,lon:135.83171,note:'1日目の宿。6:30朝食。'},
+ {id:'s-sakurai',name:'ホテルルートイン桜井駅前',lat:34.51404,lon:135.84711,note:'2日目・3日目の宿。大浴場。6:30朝食。'},
+ {id:'s-onsen',name:'天の川温泉センター',lat:34.22191,lon:135.84050,note:'木木の湯 ¥800(〜20:00)。4日目の宿は近くの「素泊まり専門の宿 Well」。'}
+];
+/* 系図ゆかりの地(行程外) */
+const yukari=[
+ {id:'isagawa',name:'率川神社',lat:34.68125,lon:135.82572,kami:['媛蹈韛五十鈴姫命','玉櫛姫命','狭井大神'],note:'奈良市本子守町。大神神社の摂社。イスケヨリヒメを中心に、両親とされる神を祀る。',gods:['isukeyori']},
+ {id:'kashihara',name:'橿原神宮',lat:34.48833,lon:135.78611,kami:['神武天皇','媛蹈韛五十鈴媛命'],note:'橿原市。畝傍山の東南のふもと。神武天皇と皇后イスケヨリヒメを祀る。',gods:['jinmu','isukeyori']},
+ {id:'yata',name:'矢田坐久志玉比古神社',lat:34.65181,lon:135.74806,kami:['櫛玉饒速日命','御炊屋姫命'],note:'大和郡山市矢田町。ニギハヤヒと、妻の登美夜毘売(御炊屋姫命)を祀る。',gods:['nigihayahi','imouto']},
+ {id:'tomi-jinja',name:'登彌神社',lat:34.66056,lon:135.76583,kami:['登美饒速日命 ほか'],note:'奈良市石木町。式内社で、下鳥見の鎮守。祭神に登美饒速日命(ニギハヤヒ)を含む。',gods:['nigihayahi','nagasune']},
+ {id:'maruyama',name:'富雄丸山古墳',kind:'site',lat:34.66649,lon:135.75213,note:'奈良市丸山。直径約109mの日本最大の円墳。4世紀後半の築造と推測される。長さ約285cmの蛇行剣と、古代の銅鏡で最大の鼉龍文盾形銅鏡が出土した。長髄彦の地にある古墳。',gods:['nagasune']},
+ {id:'izanagi-ikoma',name:'伊弉諾神社',lat:34.7300,lon:135.7450,approx:1,note:'生駒市上町。上鳥見の鎮守。',gods:['nagasune']},
+ {id:'nagasune-hi',name:'長髄彦の碑',kind:'site',lat:34.7200,lon:135.7450,approx:1,note:'生駒市白庭台の住宅地にある、長髄彦の本拠跡とされる碑。',gods:['nagasune']},
+ {id:'ishikiri',name:'石切劔箭神社',pref:'大阪',lat:34.68219,lon:135.64625,kami:['饒速日尊','可美真手命(ウマシマジ)'],note:'東大阪市東石切町。生駒山の西のふもと。「石切さん」として知られる。ニギハヤヒとウマシマジを祀り、長髄彦・登美夜毘売ゆかりの地でもある。',gods:['nigihayahi','nagasune','imouto','umashimaji']},
+ {id:'kusae',name:'孔舎衛坂',kind:'site',pref:'大阪',lat:34.6765,lon:135.6490,approx:1,note:'東大阪市日下町。生駒山の西。神武軍が長髄彦に迎え撃たれ、兄の五瀬命が傷を負って敗れた地。',gods:['nagasune','jinmu']}
+];
+const areas=[{id:'tomi',name:'鳥見(富雄)',lat:34.690,lon:135.745,zoom:13}];
+/* 神社と神山を結ぶ線 */
+const pairs=[['p-春日大社','m-mikasa'],['p-石上神宮','m-furu'],['p-大神神社','m-miwa']];
+const roads=[
+ {name:'上ツ道',dir:'南北',pts:[[34.680,135.8420],[34.600,135.8418],[34.540,135.8412],[34.518,135.8440]],note:'大和盆地の東寄りを南北に通る道。奈良から天理・石上神宮の西を経て、箸墓古墳の脇を通り桜井で横大路に出る。'},
+ {name:'中ツ道',dir:'南北',pts:[[34.680,135.8195],[34.600,135.8195],[34.500,135.8195]],note:'上ツ道の約2.1km西を南北に通る道。北は平城京の東、南は天香久山の西麓に至る。'},
+ {name:'下ツ道',dir:'南北',pts:[[34.660,135.7960],[34.600,135.7950],[34.520,135.7935],[34.475,135.7935]],note:'中ツ道の約2.1km西を南北に通る道。北は平城京の朱雀大路につながり、平城京造営の基準線になった。'},
+ {name:'横大路',dir:'東西',pts:[[34.5157,135.6769],[34.5125,135.7000],[34.5100,135.7500],[34.5115,135.7935],[34.5150,135.8200],[34.5135,135.8467],[34.5330,135.8900]],note:'盆地南部を東西に通る道。西は竹内峠を越えて河内・難波へ、東は桜井から初瀬・伊勢方面へ。'},
+ {name:'太子道',dir:'斜め',pts:[[34.6147,135.7342],[34.5850,135.7610],[34.5500,135.7900]],note:'筋違道とも。聖徳太子が斑鳩宮から飛鳥へ通ったと伝わる道。'},
+ {name:'竜田道',dir:'東西',pts:[[34.5790,135.6300],[34.5870,135.6650],[34.5931,135.6873],[34.6010,135.7080],[34.6147,135.7342]],note:'河内から竜田越えで大和へ入る道。龍田大社のあたりを経て斑鳩へ至る。'}
+];
+
+/* ===== 旅程(一世ちゃん奈良散歩.xlsx 2026-10-25版) ===== */
+/* 行: [時刻, 種類(go=地点 / move=移動 / info=メモ / stay=宿), 地点IDまたは文, メモ] */
+const ITIN=[
+ {d:1,date:'11/25(水)',rows:[
+  ['05:35','info','大森駅 → 品川駅 6:00発の新幹線 → 名古屋駅 7:27着'],
+  ['','move','名古屋から東名阪・新名神で 126km・1時間40分'],
+  ['09:30','go','p-佐久奈度神社','1時間'],
+  ['','info','昼食'],['','move','40km・1時間'],
+  ['11:30','go','p-磐船神社','1時間・岩窟拝観 ¥600(岩歩き)'],
+  ['','move','12km・15分'],
+  ['12:45','go','p-添御縣坐神社','30分'],
+  ['','move','10km・20分'],
+  ['13:30','go','p-春日大社','1時間30分・御本殿特別参拝 ¥700・若宮'],
+  ['','move','15km・40分'],
+  ['15:40','go','p-石上神社','30分'],
+  ['','go','p-桃尾の瀧','30分'],
+  ['','move','6km・10分'],
+  ['16:30','go','p-石上神宮','翌日の御祈祷を申し込む'],
+  ['16:49','info','日没'],
+  ['18:00','stay','s-tenri','¥8,500'],
+  ['夜','go','p-石上神宮','夜間参拝']]},
+ {d:2,date:'11/26(木)',rows:[
+  ['','info','6:30 朝食'],['','move','3km・10分'],
+  ['07:30','go','p-山邊御縣坐神社',''],
+  ['','move','4km・10分'],
+  ['08:00','go','p-石上神宮','1時間30分・8:30 朝拝・御祈祷'],
+  ['','move','6km・15分'],
+  ['10:30','go','p-八つ岩','1時間30分・林道'],
+  ['','info','昼食'],['','move','28km・35分'],
+  ['12:00','go','p-葛木倭文坐天羽雷命神社','1時間'],
+  ['','go','p-葛木二上神社',''],
+  ['','move','11km・20分'],
+  ['13:30','go','p-神下山 高貴寺','歩いて10分'],
+  ['','go','p-磐船大神社(栂の宮)',''],
+  ['','move','28km・45分'],
+  ['','go','p-村屋坐彌冨都比賣神社','30分'],
+  ['','move','4km・10分'],
+  ['','go','p-纒向遺跡',''],
+  ['','go','p-箸墓古墳',''],
+  ['','move','2km・5分'],
+  ['14:00','go','p-檜原神社','20分'],
+  ['','move','3km・10分'],
+  ['','go','p-綱越神社',''],
+  ['14:30','go','p-大神神社','2時間・歩く'],
+  ['','go','p-大直禰子神社',''],
+  ['16:49','info','日没'],
+  ['18:00','stay','s-sakurai','¥9,150 当日精算']]},
+ {d:3,date:'11/27(金)',rows:[
+  ['','info','6:30 朝食'],['07:30','move','6km・15分'],
+  ['08:00','info','飛鳥坐神社に到着'],
+  ['10:30','go','p-飛鳥坐神社','奉納(12:00 撤収)'],
+  ['','info','昼食'],
+  ['','go','p-亀形石造物・酒船石','45分'],
+  ['','go','c-asuka','20分'],
+  ['','move','2km・5分'],
+  ['','go','p-石舞台古墳','1時間・¥500・〜17:00・玉藻橋'],
+  ['','move','3km・6分'],
+  ['14:00','go','p-飛鳥川上坐宇須多岐比売命神社',''],
+  ['','move','10km・15分'],
+  ['15:30','go','p-等彌神社','1時間30分'],
+  ['16:49','info','日没'],
+  ['17:30','stay','s-sakurai','¥10,500'],
+  ['夜','go','p-飛鳥坐神社','夜間参拝']]},
+ {d:4,date:'11/28(土)',rows:[
+  ['','info','6:30 朝食'],['07:30','move','5km・15分'],
+  ['08:00','go','m-kagu','天香久山に登山(畝傍山・耳成山・藤原京を望む)'],
+  ['','go','p-國常立神社','1時間30分・伊弉諾神社(上の御前)・伊弉冊神社(下の御前)'],
+  ['','go','p-天岩戸神社',''],
+  ['','go','p-天香山神社',''],
+  ['10:00','move','7km・15分'],
+  ['','go','p-益田岩船',''],
+  ['','move','5km・10分'],
+  ['','go','p-キトラ古墳','壁画体験館 四神の館'],
+  ['','move','10km・20分'],
+  ['10:30','go','p-鴨都波神社','30分'],
+  ['','move','5km・10分'],
+  ['11:15','go','p-葛木御歳神社','30分'],
+  ['','info','昼食'],['','move','5km・10分'],
+  ['11:30','go','p-高天彦神社','30分'],
+  ['','move','3km・5分'],
+  ['12:00','go','p-高鴨神社','30分・夕食の柿の葉寿司などを買っていく'],
+  ['13:30','move','24km・40分'],
+  ['','go','p-丹生川上神社下社',''],
+  ['','move','15km・20分'],
+  ['16:49','info','日没'],
+  ['17:30','stay','s-onsen','〜20:00'],
+  ['','info','宿：素泊まり専門の宿 Well(¥6,000 当日精算・朝食はパンなど簡単なもの)'],
+  ['夜','go','p-天河大辨財天社','夜間参拝']]},
+ {d:5,date:'11/29(日)',rows:[
+  ['08:30','go','p-天河大辨財天社','9:00 御祈祷・10:00 禊殿'],
+  ['','go','p-舟岡山 来迎院',''],
+  ['','move','27km・1時間'],
+  ['11:00','go','p-金峯山寺 蔵王堂','2時間・12:00 秘仏本尊特別ご開帳・13:00 長日祈願護摩供'],
+  ['','move','48km・1時間'],
+  ['14:00','go','p-室生龍穴神社','30分'],
+  ['','move','1km・5分'],
+  ['14:30','go','p-吉祥龍穴','30分'],
+  ['','move','8km・15分'],
+  ['15:15','go','p-龍鎮神社','1時間'],
+  ['','info','帰りは検討中(車で名古屋駅へ／近鉄 名張・平端・天理から新幹線に乗り継ぐ案)']]}
+];
+
+/* ===== 2026-10-28 追加：ノート(『アマテラスの暗号』)と動画4本から ===== */
+/* 素材の呼び名
+   本＝伊勢谷武『アマテラスの暗号』の読書ノート
+   動画A＝TOLAND VLOG「【日本の禁忌①】ヤバすぎる日本の真の歴史を暴いていく！」
+   動画B＝TOLAND VLOG「これまで表に出せなかった禁断の裏歴史を公開します。」(孝元天皇と物部)
+   動画C＝TOLAND VLOG「日本に隠された究極最大の〝秘密〟が明かされました」(子之神社の宮司との対談)
+   動画D＝小梅小町「【熊野の天王】天火明命と櫛玉饒速日命、よみがえる太陽のスサノオ」 */
+const SRC={book:"本『アマテラスの暗号』",A:"動画「日本の禁忌①」",B:"動画「禁断の裏歴史」",C:"動画「子之神社」",D:"動画「熊野の天王」"};
+const tagS=k=>`<span class="srctag">${SRC[k]}</span>`;
+const addOral=(id,arr)=>{G[id].oral=(G[id].oral||[]).concat(arr);};
+
+addOral("nigihayahi",[
+ `${tagS("book")}天照大神の正式なお名前は「天照国照彦火明櫛甕玉饒速日命(アマテルクニテルヒコホアカリクシミカタマニギハヤヒノミコト)」。ニギハヤヒのお名前そのもの`,
+ `${tagS("book")}最初に降臨したのはニギハヤヒで、ホアカリと同じ神。海部氏の始祖`,
+ `${tagS("book")}籠神社の主祭神・火明命の別名は、饒速日命・大物主神・天照大神`,
+ `${tagS("book")}木嶋坐天照御魂神社では、天火明命＝饒速日命は「大和を差し出した神」`,
+ `${tagS("book")}国譲りの後、三輪山に葬られ、大物主にすりかえられた`,
+ `${tagS("A")}先代旧事本紀では、天孫降臨で最初に地上に降りたのはニニギの兄のニギハヤヒ。十種神宝を授かり、天磐船で大空を飛んで地上を見定めてから大和に降りた。32柱の神と25部の物部を連れていた`,
+ `${tagS("B")}出雲口伝では、ニギハヤヒは徐福が3回目に日本に上陸したときの異名。徐福の一族はイスラエル・ユダヤ系で、石切劔箭神社・石上神宮など「石」の付く社にニギハヤヒが祀られるのはそのしるし`,
+ `${tagS("B")}徐福＝ニギハヤヒが九州で立ち上げた物部王国が勢力を広げ、奈良の大和王国を攻めて倭国大乱が起きた。大和の国譲りは実際にあった出来事に近いから記紀から削れなかった`,
+ `${tagS("C")}子之神社の宮司家はニギハヤヒの子孫。家に伝わる系図では、ニギハヤヒは天竺(インド)の王子で、天の鳥船(大きな船)で熊野に来た。インド・ヒマラヤの稲を持ってきたのが「瑞穂の国」の始まり`,
+ `${tagS("C")}十種神宝の絵の原本は伊勢神宮のご本殿に納められ、ご神体になっているという言い伝え`,
+ `${tagS("D")}ニギハヤヒ(天照国照彦)は、天つ神と国つ神をつなぐ役。天つ神には2つのグループがあり、ニニギの系統(天津彦彦)は上を目指し、ホアカリ・ニギハヤヒの系統は両者をつなぐ`,
+ `${tagS("D")}ニニギより先に降りたのは、国つ神と先につながっておかないと対立が起きるから。天つ神との契約があるので、国つ神の味方をしきれない立場だった`,
+ `${tagS("D")}大和の天磐船と、熊野の天磐盾(神倉神社のゴトビキ岩)はつながっている。大和は表、熊野は裏の役割で、いずれ統合する計画があった`,
+ `${tagS("D")}『千と千尋の神隠し』のハク(ニギハヤミコハクヌシ)を連想させる。天つ神に見せる顔と国つ神に見せる顔は全然違う`
+]);
+addOral("nagasune",[
+ `${tagS("B")}長髄彦(登美の長髄彦)は出雲の人。出雲王家の「富家(登美家)」は、大和に移って磯城家になった`,
+ `${tagS("B")}大彦命＝長髄彦と言っても過言ではない。大彦命と息子の武渟川別は北陸・東海へ送られたまま大和に戻らず、会津で落ち合った。大和を追われた出雲族が蝦夷と呼ばれ、大彦命の子孫の安倍氏が東日本のトップになった(東北の「長髄彦 北上の国」につながる)`,
+ `${tagS("D")}お名前の「長(ナガ)」「髄(スネ)」は繁栄や物事の一番大切な中心を表す。「彦」は隠れた役割・裏の役割`,
+ `${tagS("D")}妹が月の夜姫の名を持ち、天から降りたニギハヤヒと結婚できる身分。月の女性を出す、繁栄を担う王家の一族`,
+ `${tagS("D")}神武の兄・五瀬命(イツセノミコト)の「五瀬」は、月の女性と結婚する流れを表す。五瀬命が手にするはずだったものを、そうはさせないと阻んだのが長髄彦`,
+ `${tagS("D")}『もののけ姫』のアシタカのモデルとも言われる`,
+ `${tagS("A")}ニギハヤヒが大和に降りて出会った、近畿を治める強い王。ニギハヤヒはその妹と結婚した`
+]);
+addOral("imouto",[
+ `${tagS("D")}登美夜毘売(トミヤヒメ)は「夜姫」。三炊屋媛の「ミカシキ」は繁栄の知恵を持つ女性を表す`,
+ `${tagS("D")}ヤタガラスで知られる賀茂建角身命の妻・伊可古夜姫も、かぐや姫も「夜姫」。夜姫は月の女性が持つ名で、ニギハヤヒは地上の月の姫と結婚していた`
+]);
+addOral("mitoshi",[
+ `${tagS("D")}かぐや姫も登美夜毘売と同じ「夜姫」で、月の女性の名`,
+ `${tagS("D")}伊勢の斎王のように、会うことのできない憧れの女性は「月の姫」として語られる`
+]);
+addOral("amenokagu",[
+ `${tagS("D")}天火明命の子の天香山命(アメノカグヤマノミコト)。「天の香具山」は暗号で天皇の試練。地上に先に降りたのは天香山命ではないかという考察`,
+ `${tagS("D")}高倉下は神倉神社の祭神。布都御魂剣が下ろされた倉は、神倉神社の場所だったのではないか`
+]);
+addOral("jinmu",[
+ `${tagS("B")}出雲口伝では、徐福と出雲の血を引く海部の天村雲が、事代主の娘・媛蹈鞴五十鈴媛と結婚して大和の王になった。系譜の上では天村雲＝神武天皇`,
+ `${tagS("book")}神武天皇(北イスラエル王国の失われた十支族?)と崇神天皇(南ユダ王国系)は、どちらも「始馭天下之天皇(ハツクニシラススメラミコト)」。神武は即位前の、崇神は即位後の記述しかなく、同じ人物ではないか`,
+ `${tagS("book")}同じお名前を持つ神は同じ神。アマテラス＝ニニギ＝ホホデミ＝ウガヤフキアエズ＝神武`
+]);
+addOral("isukeyori",[
+ `${tagS("B")}出雲口伝では、媛蹈鞴五十鈴媛は出雲王家の女性祭祀者。神武の死後、九州時代の子タギシミミが出雲の血を得るために彼女と結婚したが、神渟名川耳(綏靖天皇)に倒された`
+]);
+addOral("okuninushi",[
+ `${tagS("book")}別名がとても多い(大己貴神・大物主・八千矛・大国魂神・顕国魂神・葦原醜男・櫛甕玉神など)。アマテラス側(天津神)に敗れた王たち(国津神)をまとめた習合神`,
+ `${tagS("book")}スサノオ＝大国主。八剱八幡神社(千葉)の主祭神スサノオと、八剱神社(諏訪)の八千矛神が同じ`
+]);
+addOral("amaterasu",[
+ `${tagS("book")}正式なお名前は天照国照彦火明櫛甕玉饒速日命。8世紀以降に大日孁貴(女神)と同一とされた`,
+ `${tagS("book")}能「三輪」の「思えば伊勢と三輪の神、一体分身の御事」。伊勢のアマテラスと三輪の大物主(大国主)は同じ神`,
+ `${tagS("book")}アマテラス＝ヤハウェ＝キリストを祀っている。天岩戸に隠れて(一度死に)、祭司の祝詞で現世に戻る`
+]);
+
+/* 新しい章(第6章「長髄彦と奈良」のあとに入れる) */
+const NEWCH=[
+ {id:"c9",short:"ニギハヤヒの正体",title:"ニギハヤヒの正体",gods:["nigihayahi","amaterasu","nagasune","imouto","jinmu","okuninushi"],html:()=>`
+  <h4>アマテラスのお名前を持つ神</h4><ul>
+  <li>${tagS("book")}アマテラスの正式なお名前は「天照国照彦火明櫛甕玉饒速日命」。ホアカリ(火明)、クシミカタマ(櫛甕玉＝大国主の別名)、ニギハヤヒ(饒速日)がすべて入っています。</li>
+  <li>${tagS("book")}同じお名前を持つ神は同じ神。アマテラス＝ニニギ＝ホホデミ＝ウガヤフキアエズ＝神武、ニギハヤヒ＝ホアカリ、スサノオ＝大国主。史実をわかりやすく物語にするために、神々を作って話を分けたとされます。</li>
+  <li>${tagS("book")}籠神社の主祭神・火明命の別名は饒速日命・大物主神・天照大神。717年(8世紀)までは彦火火出見尊(ホホデミ)が主祭神でした。木嶋坐天照御魂神社では、天火明命＝饒速日命は「大和を差し出した神」です。</li></ul>
+  <h4>最初に降りた神</h4><ul>
+  <li>${tagS("A")}先代旧事本紀では、天孫降臨で最初に地上に降りたのはニニギの兄の${r("nigihayahi")}。十種神宝を授かり、${pl("p-磐船神社","天磐船")}で大空を飛んで地上を見定め、大和に降りました。32柱の神と25部の物部を連れていて、その子孫が物部氏です。</li>
+  <li>${tagS("A")}大和に降りたニギハヤヒは、近畿を治める強い王${r("nagasune")}と出会い、その妹の${r("imouto")}と結婚します。</li>
+  <li>${tagS("C")}子之神社の宮司家に伝わる系図では、ニギハヤヒは天竺(インド)の王子。天の鳥船という大きな船で熊野に来て、ヒマラヤの稲を持ち込みました。それが「瑞穂の国」の始まりです。</li></ul>
+  <h4>三輪山と石上</h4><ul>
+  <li>${tagS("book")}ニギハヤヒは国譲りの後、${pl("m-miwa","三輪山")}に葬られ、大物主にすりかえられました。${pl("p-大神神社","大神神社")}のご神体は三輪山、主祭神は大物主(大国主の和魂)です。</li>
+  <li>${tagS("book")}能「三輪」は「思えば伊勢と三輪の神、一体分身の御事」と謡います。伊勢のアマテラスと三輪の大物主は同じ神です。</li>
+  <li>${tagS("book")}伊勢神宮ができるまで「神宮」といえば${pl("p-石上神宮","石上神宮")}でした。</li></ul>
+  <h4>徐福と物部、熊野と大和</h4><ul>
+  <li>${tagS("B")}出雲口伝では、ニギハヤヒは徐福が3回目に日本に上陸したときの異名。九州で立ち上げた物部王国が勢力を広げ、大和を攻めて倭国大乱が起きました。${pl("ishikiri","石切劔箭神社")}や石上神宮のように、ニギハヤヒを祀る社に「石」が付くのはイスラエル系のしるしだとされます。</li>
+  <li>${tagS("D")}天つ神には2つのグループがあります。ニニギの系統(天津彦彦)は上を目指し、ホアカリ・ニギハヤヒの系統(天照国照彦)は天つ神と国つ神をつなぎます。ニギハヤヒがニニギより先に降りたのは、先に国つ神とつながらないと対立が起きるからです。</li>
+  <li>${tagS("D")}大和の天磐船と、熊野の天磐盾(神倉神社のゴトビキ岩)はつながっています。大和は表、熊野は裏の役割で、いずれ統合する計画がありました。神武東征は、天津彦の側がその「火」を譲ってほしかったから起きたと読めます。</li></ul>`},
+ {id:"c10",short:"長髄彦と出雲・東北",title:"長髄彦と出雲・東北",gods:["nagasune","imouto","jinmu","nigihayahi"],html:()=>`<ul>
+  <li>${tagS("B")}${r("nagasune","登美の長髄彦")}は出雲の人。出雲王家の「富家(登美家)」が大和に移って「磯城家」になり、鴨家とともに大和の出雲系の家になりました。</li>
+  <li>${tagS("B")}大彦命＝長髄彦と言ってもいいほど重なります。大彦命と息子の武渟川別は北陸・東海へ送られたまま大和に戻らず、会津で落ち合いました。大和を追われた出雲族が蝦夷と呼ばれ、大彦命の子孫の安倍氏が東日本のトップに立ちます。</li>
+  <li>${tagS("B")}倭国大乱の後、物部(ニギハヤヒの子孫)が出雲族を追い出したのなら、それが「出雲の国譲り」と「大和の国譲り」を合わせた本当の国譲りだったという考察です。</li>
+  <li>出雲口伝では、長髄彦は東北にルーツを持つ古代出雲族の王で、龍蛇神(水・岩に宿る神)を信仰していました。敗れて東北へ逃れ、蝦夷・アラハバキにつながり、北上の国を作って「鬼」と呼ばれたとも語られます。</li>
+  <li>${tagS("D")}お名前の「長(ナガ)」「髄(スネ)」は繁栄や一番大切な中心を表します。「彦」は裏の役割を表します。妹が月の「夜姫」の名を持ち、天から降りたニギハヤヒと結婚できる身分なので、月の女性を出す王家の一族でした。</li>
+  <li>${tagS("D")}神武の兄・五瀬命の「五瀬」は、月の女性と結婚する流れを表します。それを阻んだのが長髄彦で、五瀬命は手(＝手に入れること)に傷を負って亡くなりました。</li>
+  <li>${tagS("D")}『もののけ姫』のアシタカのモデルとも言われます。</li></ul>`},
+ {id:"c11",short:"かぐや姫と月の姫",title:"かぐや姫と月の姫",gods:["mitoshi","imouto","nigihayahi","nagasune","amenokagu","kamuoichi"],html:()=>`<ul>
+  <li>${tagS("D")}${r("imouto")}(トミヤヒメ)は「夜姫」。ヤタガラスで知られる賀茂建角身命の妻・伊可古夜姫も、かぐや姫も「夜姫」です。夜姫は月の女性が持つ名で、${r("nigihayahi")}は地上の月の姫と結婚していました。</li>
+  <li>ノートでは、かぐや姫は${r("mitoshi")}。祖母の${r("kamuoichi")}から罪を引き継ぎ、最後は東北の月氏のもとに身を隠しました。登美夜毘売の兄${r("nagasune")}は、かぐや姫を軍事面で支えた反対派です。月の姫を出す一族と、月の姫を守る一族が重なります。</li>
+  <li>${tagS("D")}伊勢の斎王のように、会うことのできない憧れの女性は「月の姫」として語られます。火は会えない女性の面影を移すもので、ホアカリ(火明)の「火」はその女性を表すとも読めます。</li>
+  <li>${tagS("D")}ホアカリの子の${r("amenokagu")}。「天の香具山」は暗号で天皇の試練を表します(持統天皇の「春過ぎて夏来にけらし白妙の衣ほすてふ天の香具山」)。かぐや姫が祭祀を行った${pl("m-kagu","天香具山")}とも重なります。</li>
+  <li>${tagS("C")}子之神社では「月読(ツクヨミ)」は「月を呼ぶ」こと。月の道の延長線上にいると幸運を招くと伝わります。</li></ul>`},
+ {id:"c12",short:"秦氏とイスラエル",title:"秦氏とイスラエル(『アマテラスの暗号』より)",gods:["kamuoichi","amaterasu","jinmu","okuninushi"],html:()=>`
+  <p>ノートの「神大市比売はツクヨミの末裔で、ユダヤ系レビ族の祭祀王、弓月君の系統」の背景になる話です。</p>
+  <h4>失われた十支族とユダ族</h4><ul>
+  <li>イスラエル王国は紀元前9世紀ごろ、北イスラエル王国(十支族・多神教)と南ユダ王国(ユダ族・ベニヤミン族・一神教)に分かれました。北は紀元前8世紀にアッシリアに滅ぼされて行方不明(失われた十支族)、南は紀元前6世紀に新バビロニアに滅ぼされます。</li>
+  <li>預言者イザヤ「東で神をあがめ、海の島々でイスラエルの神、主の名をあがめよ」。紀元前687年ごろ、イザヤがアークを持ち出して日本を目指した? 紀元前660年は神武天皇即位の年です。</li>
+  <li>アークは十戒の石板を納めた移動式の神殿。二体の智天使(ケルビム)が羽を広げる形は、鳳凰が羽を広げる神輿と同じです。アークに触れられたのはレビ族だけで、神社の宮司に似た白装束と帽子、衣の「房」も共通します。</li>
+  <li>八百万の神を信仰する土着の日本人に、多神教の十支族が渡来して融合。のちに南ユダ王国のダビデ王の後継者(ユダ族)が渡来し、どちらもユダヤ教がもとなので融合しました。預言どおり「東の島々の国」に平安京(エルサレム)を築きます。</li></ul>
+  <h4>秦氏</h4><ul>
+  <li>カザフスタンからウイグルのあたりに「夜は光り輝き、昼は煙が立ちのぼる」製鉄集団がいました。彼らは「三日月国」「新月国」と呼ばれました。三日月は「弓月」、7世紀には「弓月国」と記されます。</li>
+  <li>仲哀天皇の時代に弓月君の父・功満が来日。3世紀後半、弓月君が百済を経て127県の民(2万人?)を率いて日本に来て「秦氏」を名乗り、機織り・養蚕・灌漑・土木・建築・冶金・農業・雅楽などを広めました。</li>
+  <li>本拠地は平安京の太秦。太秦はローマの漢字表記。エル・シャローム(都・平安)＝エルサレム、ガラリア湖＝琵琶湖、ヨルダン川＝淀川と重なります。</li>
+  <li>秦氏ゆかりの神社：稲荷(伏見稲荷・秦伊呂巨)、八幡(宇佐神宮・辛嶋氏)、八坂(イヤサカ＝ヤハウェ偉大なり)、白山(泰澄)、日吉・日枝・山王(松尾大社・秦都理・大山咋神)、金毘羅(以前は秦宮)。伊勢神宮外宮の祠官・大幡主の一族も秦氏。</li>
+  <li>八幡＝ヤハダ＝ヤフダ(ユダ族)。ヤマト＝ヤー・ウマト(神の民)。数え歌「ひい、ふう、みい……」はヘブライ語の詩とされます。</li></ul>
+  <h4>大和・奈良につながること</h4><ul>
+  <li>神武天皇(北イスラエル王国・八百万の神と融合)、崇神天皇(南ユダ王国・一神教と融合)、応神天皇(秦氏を受け入れた・景教と融合)。天皇125代で諡に「神」が付くのはこの3人だけです。</li>
+  <li>${pl("p-石上神宮","石上神宮")}にはクサナギの剣があり、伊勢神宮ができるまでは「神宮」といえば石上神宮。奈良の${pl("oyamato","大和神社")}、${pl("p-大神神社","大神神社")}も、このノートに挙がる神社です。</li>
+  <li>大嘗祭の麁服を調進するのは阿波の忌部氏(3世紀から徳島に住む)。徳島は秦氏の子孫が多い土地です。</li></ul>`}
+];
+(function(){ const i=CH.findIndex(c=>c.id==="c6"); CH.splice(i+1,0,NEWCH[0],NEWCH[1],NEWCH[2]); const j=CH.findIndex(c=>c.id==="c8"); CH.splice(j,0,NEWCH[3]); })();
+
+/* 地図の地点への書き足し */
+(function(){
+  const add=(arr,name,txt)=>{const p=arr.find(x=>x.name===name); if(p) p.note=(p.note||"")+txt;};
+  add(key,"大神神社","『アマテラスの暗号』では、ニギハヤヒは国譲りの後に三輪山に葬られ、大物主にすりかえられたとされる。");
+  add(key,"石上神宮","伊勢神宮ができるまで「神宮」といえば石上神宮だった(『アマテラスの暗号』)。");
+  add(trip,"磐船神社","先代旧事本紀では、ニギハヤヒは十種神宝を授かり天磐船で大和に降りた。岩舟がそのまま残る(動画「日本の禁忌①」)。");
+  const k=key.find(x=>x.name==="大神神社"); if(k&&!k.gods.includes("nigihayahi")) k.gods.push("nigihayahi","amaterasu");
+  const s=yukari.find(x=>x.id==="ishikiri"); if(s) s.note+="出雲口伝では、社号の「石」はニギハヤヒ(徐福)の一族がイスラエル系であるしるしとされる。";
+  yukari.push({id:'oyamato',name:'大和神社',lat:34.5825,lon:135.8275,approx:1,kami:['日本大国魂大神','八千戈大神','御年大神'],note:'天理市新泉町。『アマテラスの暗号』のノートで、ゆかりの神社に挙がる。御年大神(御歳神)も祀る。',gods:['mitoshi','okuninushi']});
+})();
+
+const chip=id=>`<button class="chip k-${G[id].kind}" data-id="${id}">${G[id].name}</button>`;
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ===== 地点を1つにまとめる ===== */
+const PT={};
+capitals.forEach(c=>PT['c-'+c.id]={...c,id:'c-'+c.id,type:'cap',days:new Set(c.day?[c.day]:[])});
+mountains.forEach(m=>PT['m-'+m.id]={...m,id:'m-'+m.id,type:'mt',days:new Set()});
+key.forEach(k=>PT['p-'+k.name]={...k,id:'p-'+k.name,type:'key',days:new Set()});
+trip.forEach(t=>PT['p-'+t.name]={...t,id:'p-'+t.name,type:'trip',days:new Set()});
+yukari.forEach(y=>PT[y.id]={...y,type:'yk',days:new Set()});
+stays.forEach(y=>PT[y.id]={...y,type:'stay',days:new Set()});
+ITIN.forEach(day=>day.rows.forEach(r=>{ if((r[1]==='go'||r[1]==='stay')&&PT[r[2]]) PT[r[2]].days.add(day.d); else if(r[1]==='go'||r[1]==='stay') console.warn('missing',r[2]); }));
+const dayRoute=d=>{const out=[];ITIN.find(x=>x.d===d).rows.forEach(r=>{if((r[1]==='go'||r[1]==='stay')&&PT[r[2]]&&out[out.length-1]!==r[2])out.push(r[2])});return out;};
+areas.forEach(a=>PT[a.id]={...a,type:'area',days:new Set()});
+const placesOf=gid=>Object.values(PT).filter(p=>p.type!=='area'&&(p.gods||[]).includes(gid));
+const chaptersOfPlace=pid=>CH.filter(c=>c.html().includes(`data-place="${pid}"`));
+const chaptersOf=id=>CH.filter(c=>c.gods.includes(id)||(c.extra||[]).includes(id));
+const plchip=p=>`<button class="chip k-pl" data-place="${p.id}">${p.name}</button>`;
+
+/* ===== 系図のノード ===== */
+const NS="http://www.w3.org/2000/svg", nodesEl=document.getElementById("nodes"), tree=document.getElementById("tree");
+for(const [id,g] of Object.entries(G)){
+  if(g.chart===false) continue;
+  const el=document.createElementNS(NS,"g");
+  el.setAttribute("class","n "+g.kind);el.dataset.id=id;
+  el.setAttribute("tabindex","0");el.setAttribute("role","button");el.setAttribute("aria-label",g.name+"の詳細を見る");
+  const cx=g.x+g.w/2;
+  el.innerHTML=`<rect x="${g.x}" y="${g.y}" width="${g.w}" height="54" rx="8"/>`+(g.sub
+   ?`<text class="nm" x="${cx}" y="${g.y+20}" text-anchor="middle" dominant-baseline="central">${g.name}</text><text class="sb" x="${cx}" y="${g.y+39}" text-anchor="middle" dominant-baseline="central">${g.sub}</text>`
+   :`<text class="nm" x="${cx}" y="${g.y+27}" text-anchor="middle" dominant-baseline="central">${g.name}</text>`);
+  nodesEl.appendChild(el);
+}
+const filters=document.getElementById("filters"), fnote=document.getElementById("fnote");
+filters.innerHTML=`<button class="fchip" data-f="" aria-pressed="true">すべて</button>`+CH.map((c,i)=>`<button class="fchip" data-f="${c.id}" aria-pressed="false">${i+1}. ${c.short}</button>`).join("");
+let curFilter="";
+function setFilter(cid){
+  curFilter=cid||"";
+  filters.querySelectorAll(".fchip").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.f===curFilter)));
+  const c=CH.find(x=>x.id===curFilter);
+  tree.classList.toggle("filtering",!!c);
+  nodesEl.querySelectorAll(".n").forEach(n=>n.classList.toggle("dim",!!c&&!c.gods.includes(n.dataset.id)));
+  if(c){fnote.hidden=false;fnote.innerHTML=`<span>第${CH.indexOf(c)+1}章「${c.title}」に出てくる神様</span><button data-goch="${c.id}">この章を読む</button>`;}
+  else fnote.hidden=true;
+  const a=filters.querySelector(`[data-f="${curFilter}"]`); if(a) a.scrollIntoView({block:"nearest",inline:"nearest"});
+}
+function markNode(id){nodesEl.querySelectorAll(".n").forEach(n=>n.classList.toggle("on",n.dataset.id===id));}
+function scrollToNode(id){
+  const g=G[id],box=document.getElementById("chart"); if(!g||g.chart===false) return;
+  const k=tree.getBoundingClientRect().width/760;
+  box.scrollTo({left:Math.max(0,(g.x+g.w/2)*k-box.clientWidth/2),behavior:"smooth"});
+  const top=tree.getBoundingClientRect().top+window.scrollY+(g.y+27)*k-window.innerHeight*0.4;
+  window.scrollTo({top:Math.max(0,top),behavior:"smooth"});
+}
+
+/* ===== まとめ ===== */
+document.getElementById("toc").innerHTML=CH.map((c,i)=>`<button data-goch="${c.id}"><span class="no">第${i+1}章</span><span>${c.title}</span></button>`).join("");
+document.getElementById("chapters").innerHTML=CH.map((c,i)=>`<article class="ch" id="${c.id}"><div class="no">第${i+1}章</div><h3>${c.title}</h3>${c.html()}
+ <div class="chfoot"><span class="lab">この章に出てくる神様</span><div class="rel">${[...c.gods,...(c.extra||[])].map(chip).join("")}</div><div class="btnrow"><button class="btn" data-treech="${c.id}">この章を系図で見る</button></div></div></article>`).join("");
+
+/* ===== タブ ===== */
+const TABS=["map","itin","tree","read"];
+function setTab(t,push){
+  if(!TABS.includes(t)) t="map";
+  document.querySelectorAll("[data-view]").forEach(v=>v.hidden=v.dataset.view!==t);
+  document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",String(b.dataset.tab===t)));
+  if(push){try{history.replaceState(null,"","#"+t)}catch(e){}}
+  try{localStorage.setItem("kaguya-tab",t)}catch(e){}
+  if(t==="map"&&map) setTimeout(()=>{map.resize(); if(!map._kFit&&map.getContainer().offsetWidth>0){map.fitBounds(bb(VIEWS.basin[1]),{animate:false});map._kFit=true;}},30);
+}
+function goChapter(cid){
+  setTab("read",true); closeSheet();
+  const el=document.getElementById(cid); if(!el) return;
+  requestAnimationFrame(()=>{el.scrollIntoView({behavior:"smooth",block:"start"});el.classList.add("flash");setTimeout(()=>el.classList.remove("flash"),1600)});
+}
+function showInTree(opt){
+  setTab("tree",true); closeSheet();
+  setFilter(opt.ch||""); if(opt.id) markNode(opt.id);
+  if(opt.id) setTimeout(()=>scrollToNode(opt.id),50); else window.scrollTo({top:0,behavior:"smooth"});
+}
+
+/* ===== シート ===== */
+const sheet=document.getElementById("sheet"),scrim=document.getElementById("scrim");
+const KIND={sai:"祭祀王の系統",tou:"統治王の系統",oth:"その他"};
+const list=a=>a&&a.length?`<ul>${a.map(t=>`<li>${t}</li>`).join("")}</ul>`:`<p class="empty">特になし</p>`;
+let lastFocus=null;
+function openSheet(title,yomi,html){
+  lastFocus=document.activeElement;
+  document.getElementById("s-name").textContent=title;
+  document.getElementById("s-yomi").textContent=yomi||"";
+  const b=document.getElementById("s-body"); b.innerHTML=html; b.scrollTop=0;
+  sheet.hidden=false;scrim.hidden=false;
+  document.getElementById("s-close").focus({preventScroll:true});
+}
+function closeSheet(){ if(sheet.hidden) return; sheet.hidden=true;scrim.hidden=true; if(lastFocus&&document.contains(lastFocus)) lastFocus.focus({preventScroll:true}); }
+document.getElementById("s-close").addEventListener("click",closeSheet);
+scrim.addEventListener("click",closeSheet);
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSheet()});
+
+function openGod(id){
+  const g=G[id]; if(!g) return;
+  const chs=chaptersOf(id), pls=placesOf(id);
+  const nara=pls.filter(p=>!p.pref), out=pls.filter(p=>p.pref);
+  markNode(id);
+  openSheet(g.name,g.yomi,`<div class="tags"><span class="kind ${g.kind}">${KIND[g.kind]}</span></div>
+   ${g.chart===false?"":`<div class="btnrow"><button class="btn" data-treegod="${id}">系図で見る</button></div>`}
+   <div class="blk"><h4>ノートでは</h4>${list(g.note)}</div>
+   <div class="blk"><h4>記紀・伝承では</h4>${list(g.kiki)}</div>
+   ${g.oral?`<div class="blk"><h4>動画・口伝・本では</h4>${list(g.oral)}</div>`:""}
+   <div class="blk"><h4>まとめの中で出てくる章</h4>${chs.length?`<div class="rel">${chs.map(c=>`<button class="chip" data-goch="${c.id}">第${CH.indexOf(c)+1}章 ${c.short}</button>`).join("")}</div>`:`<p class="empty">特になし</p>`}</div>
+   <div class="blk"><h4>ゆかりの地(奈良)</h4>${nara.length?`<div class="rel">${nara.map(plchip).join("")}</div>`:`<p class="empty">奈良県内には特になし</p>`}
+    ${out.length?`<p style="font-size:13px;color:var(--muted)">奈良県外</p><div class="rel">${out.map(plchip).join("")}</div>`:""}</div>
+   <div class="blk"><h4>関係する神様</h4><div class="rel">${g.rel.map(chip).join("")}</div></div>`);
+}
+const TYPEL={cap:"都",mt:"山",key:"主要な神社",trip:"奈良散歩",yk:"系図ゆかりの地",stay:"宿"};
+function tagH(t,v){return `<span class="kind" style="background:var(${v})">${t}</span>`}
+function gmaps(p){
+  const q=encodeURIComponent(p.name+(p.pref?"":" 奈良"));
+  return `<div class="btnrow"><a class="btn" href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank" rel="noopener">Googleマップで開く</a><a class="btn ghost" href="https://www.google.com/maps/dir/?api=1&destination=${q}" target="_blank" rel="noopener">経路を調べる</a></div>`;
+}
+function openPlace(id){
+  const p=PT[id]; if(!p) return;
+  selectPoint(id);
+  let tg=tagH(TYPEL[p.type]||"",p.type==='cap'?'--capital':p.type==='mt'?'--mount':p.type==='key'?'--shu':p.type==='yk'?'--gold':'--muted');
+  if(p.type==='key'&&p.days.size) tg+=tagH('奈良散歩','--muted');
+  if(p.tag) tg+=tagH(p.tag,'--shu');
+  [...p.days].sort().forEach(d=>tg+=tagH(DAYL[d],DAYC[d]));
+  if(p.gods&&p.gods.length&&p.type!=='yk') tg+=tagH('系図ゆかり','--gold');
+  if(p.approx) tg+=tagH('位置はおおよそ','--muted');
+  let h=`<div class="tags">${tg}</div>`;
+  if(p.type==='mt') h+=`<p style="margin:0">標高 ${p.h}m${p.alt?`・別名 ${p.alt}`:""}</p>`;
+  if(p.type==='cap') h+=`<p style="margin:0">${p.sub}</p>`;
+  if(p.note) h+=`<div class="blk"><p>${p.note}</p></div>`;
+  if(p.kami&&p.kami.length) h+=`<div class="blk"><h4>ご祭神</h4>${list(p.kami)}</div>`;
+  if(p.sub&&Array.isArray(p.sub)) h+=`<div class="blk"><h4>境内・摂末社</h4>${list(p.sub)}</div>`;
+  if(p.mt){const m=PT['m-'+p.mt];const[b,dk]=bearing(p,m); h+=`<div class="blk"><h4>背後の神山</h4><div class="rel">${plchip(m)}</div><p style="font-size:14px">${m.name}まで：方位 ${b.toFixed(0)}°(${compass(b)})・${dk.toFixed(1)}km</p></div>`;}
+  const sh=pairs.find(x=>x[1]===id); if(sh){const s0=PT[sh[0]]; h+=`<div class="blk"><h4>この山を御神体・背後の山とする神社</h4><div class="rel">${plchip(s0)}</div></div>`;}
+  if(p.gods&&p.gods.length) h+=`<div class="blk"><h4>ゆかりの神様</h4><div class="rel">${p.gods.map(chip).join("")}</div></div>`;
+  const chs=chaptersOfPlace(id);
+  if(chs.length) h+=`<div class="blk"><h4>まとめの中で出てくる章</h4><div class="rel">${chs.map(c=>`<button class="chip" data-goch="${c.id}">第${CH.indexOf(c)+1}章 ${c.short}</button>`).join("")}</div></div>`;
+  const dd=[...p.days].sort(); if(dd.length) h+=`<div class="blk"><h4>旅程</h4><div class="rel">${dd.map(d=>`<button class="chip" data-itin="${d}">${DAYL[d]}の旅程を見る</button>`).join("")}</div></div>`;
+  h+=`<div class="blk">${p.type!=='cap'?gmaps(p):""}<div class="btnrow" style="margin-top:8px"><button class="btn ghost" data-sunbase="${id}">ここを日の出・日の入りの基点にする</button></div></div>`;
+  openSheet(p.name,p.yomi,h);
+}
+function openRoad(rd){
+  selectPoint(null);
+  openSheet(rd.name,"",`<div class="tags">${tagH('古代の道・'+rd.dir,'--road')}${tagH('経路はおおよそ','--muted')}</div><div class="blk"><p>${rd.note}</p></div>`);
+}
+
+/* ===== 地図(MapLibre) ===== */
+const P=(lat,lon)=>[(lon-LON0)*KX,(LAT0-lat)*KY];
+function bearing(a,b){const[x1,y1]=P(a.lat,a.lon),[x2,y2]=P(b.lat,b.lon);const dx=x2-x1,dy=y1-y2;let deg=Math.atan2(dx,dy)*180/Math.PI;if(deg<0)deg+=360;return[deg,Math.hypot(dx,dy)]}
+function compass(d){const n=['北','北北東','北東','東北東','東','東南東','南東','南南東','南','南南西','南西','西南西','西','西北西','北西','北北西'];return n[Math.round(d/22.5)%16]}
+/* 大圏(地球の丸みに沿った線)で、方位と距離から行き先を出す */
+function dest(lat,lon,az,km){const R=6371,d=km/R,b=az*Math.PI/180,f1=lat*Math.PI/180,l1=lon*Math.PI/180;
+  const f2=Math.asin(Math.sin(f1)*Math.cos(d)+Math.cos(f1)*Math.sin(d)*Math.cos(b));
+  const l2=l1+Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(f1),Math.cos(d)-Math.sin(f1)*Math.sin(f2));
+  return [l2*180/Math.PI,f2*180/Math.PI];}
+const TILE="https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png";
+const OFM="https://tiles.openfreemap.org/styles/liberty";
+const GSI_STYLE={version:8,sources:{gsi:{type:"raster",tiles:[TILE],tileSize:256,maxzoom:18,attribution:'<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a>'}},layers:[{id:"gsi",type:"raster",source:"gsi"}]};
+const VIEWS={basin:["大和盆地",[[34.72,135.63],[34.42,135.92]]],tomi:["鳥見・生駒",[[34.74,135.62],[34.64,135.79]]],fujiwara:["藤原京・飛鳥・三輪",[[34.56,135.76],[34.44,135.89]]],katsuragi:["葛城",[[34.54,135.62],[34.39,135.77]]],nara:["平城京・春日",[[34.72,135.72],[34.64,135.90]]],yoshino:["吉野・天川",[[34.40,135.76],[34.20,135.90]]],muro:["室生",[[34.58,135.99],[34.51,136.08]]],all:["行程の全体",[[34.95,135.60],[34.20,136.07]]],japan:["日本全体",[[45.6,128.0],[30.0,146.5]]]};
+const bb=v=>[[v[0][1],v[1][0]],[v[1][1],v[0][0]]];
+const LAYERS=[["L-yk","系図ゆかりの地",1],["L-key","春日・石上・大神／葛城三社",1],["L-trip","奈良散歩の神社・史跡",1],["L-stay","宿",1],["L-cap","都(平城京・藤原京・飛鳥宮)",1],["L-mt","神山・大和三山・葛城の山",1],["L-pair","神社と神山を結ぶ線",1],["L-road","古代の道",1],["L-sun","春分・秋分・夏至・冬至の日の出・日の入り(日本全国まで)",1],["L-route","日ごとの巡拝順の線",0],["L-ew","都を通る東西線(春分・秋分)",0],["L-sun34","北緯34度32分線(太陽の道)",0]];
+const LS={}; LAYERS.forEach(([k,,v])=>LS[k]=!!v);
+try{const s=JSON.parse(localStorage.getItem("kaguya-layers3")||"null"); if(s) Object.assign(LS,s);}catch(e){}
+let baseMode="osm"; try{baseMode=localStorage.getItem("kaguya-base")||"osm"}catch(e){}
+let onlyYk=false, dayMode=0, sunBaseV='c-fujiwara', selected=null, map=null, markers={}, labelMarkers=[], styleReady=false, geo=null;
+const mapnote=document.getElementById("mapnote");
+function note(t){ if(!t){mapnote.hidden=true;return;} mapnote.hidden=false; mapnote.textContent=t; }
+
+function iconHTML(p){
+  const sel=(selected===p.id?" sel":"")+(dayMode&&!p.days.has(dayMode)&&p.type!=='mt'?" dim":"");
+  if(p.type==='stay') return `<div class="pin${sel}"><span class="sq" style="width:16px;height:16px;background:var(--muted);border-radius:4px;display:grid;place-items:center;color:#fff;font-size:10px;line-height:1">宿</span><span class="lab t">${p.name}</span></div>`;
+  const ring=(p.gods&&p.gods.length)?`<span class="ring"></span>`:"";
+  if(p.type==='cap') return `<div class="pin${sel}"><span class="sq" style="width:14px;height:14px;background:var(--capital)"></span><span class="lab c">${p.name}</span></div>`;
+  if(p.type==='mt') return `<div class="pin${sel}">${ring}<span class="tri" style="${p.sacred?"":"border-bottom-color:var(--mountfill)"}"></span><span class="lab m">${p.name}<br><small style="font-weight:500">${p.h}m</small></span></div>`;
+  if(p.type==='key') return `<div class="pin${sel}">${ring}<span class="torii">社</span><span class="lab k">${p.name}</span></div>`;
+  const col=p.type==='yk'?'var(--gold)':`var(${DAYC[[...p.days][0]||1]})`;
+  const lc=p.type==='yk'?'y':'t';
+  if(p.kind==='site') return `<div class="pin${sel}">${ring}<span class="dia" style="width:11px;height:11px;border-color:${col}"></span><span class="lab ${lc}">${p.name}</span></div>`;
+  if(p.kind==='temple') return `<div class="pin${sel}">${ring}<span class="sq" style="width:12px;height:12px;background:${col}"></span><span class="lab ${lc}">${p.name}</span></div>`;
+  return `<div class="pin${sel}">${ring}<span class="dot" style="width:14px;height:14px;background:${col}"></span><span class="lab ${lc}">${p.name}</span></div>`;
+}
+const LAYOF={cap:"L-cap",mt:"L-mt",key:"L-key",trip:"L-trip",yk:"L-yk",stay:"L-stay"};
+function visible(p){
+  if(p.type==='area') return false;
+  if(dayMode&&p.days.has(dayMode)) return true;
+  const l=LAYOF[p.type];
+  if(p.gods&&p.gods.length&&LS["L-yk"]&&(p.type==='trip'||p.type==='yk')) return true;
+  if(!LS[l]) return false;
+  if(onlyYk&&!(p.gods&&p.gods.length)&&p.type!=='mt'&&p.type!=='cap') return false;
+  if(p.type==='mt'&&p.minor&&map&&map.getZoom()<13) return false;
+  return true;
+}
+function drawMarkers(){
+  if(!map) return;
+  Object.values(markers).forEach(m=>m.remove()); markers={};
+  const order={mt:1,cap:2,stay:3,trip:4,yk:5,key:6};
+  Object.values(PT).filter(visible).sort((a,b)=>(order[a.type]||0)-(order[b.type]||0)).forEach(p=>{
+    const el=document.createElement("div"); el.className="mk"; el.style.zIndex=String(order[p.type]||0); el.dataset.t=p.type;
+    el.innerHTML=iconHTML(p); el.setAttribute("role","button"); el.setAttribute("aria-label",p.name); el.tabIndex=0;
+    el.addEventListener("click",ev=>{ev.stopPropagation();openPlace(p.id);});
+    markers[p.id]=new maplibregl.Marker({element:el,anchor:"center"}).setLngLat([p.lon,p.lat]).addTo(map);
+  });
+}
+function labelAt(lon,lat,html){ const el=document.createElement("div"); el.className="mk lbl"; el.innerHTML=html; labelMarkers.push(new maplibregl.Marker({element:el,anchor:"center"}).setLngLat([lon,lat]).addTo(map)); }
+function lineF(coords,props){return {type:"Feature",properties:props,geometry:{type:"LineString",coordinates:coords}};}
+function drawOverlay(){
+  if(!map) return;
+  labelMarkers.forEach(m=>m.remove()); labelMarkers=[];
+  if(!styleReady) return;
+  const C={cap:css('--capital'),sun:css('--sun'),dusk:css('--dusk'),road:css('--road'),shu:css('--shu')};
+  const solid=[],dash=[],fills=[];
+  if(LS["L-road"]) roads.forEach(rd=>{ solid.push(lineF(rd.pts.map(p=>[p[1],p[0]]),{color:C.road,width:4,op:.85,road:rd.name}));
+    const i=Math.floor((rd.pts.length-1)/2),a=rd.pts[i],b=rd.pts[i+1]; labelAt((a[1]+b[1])/2,(a[0]+b[0])/2,`<div class="roadlab">${rd.name}</div>`); });
+  if(LS["L-pair"]) pairs.forEach(([a0,m0])=>{const a=PT[a0],b=PT[m0];const[deg,dk]=bearing(a,b);
+    dash.push(lineF([[a.lon,a.lat],[b.lon,b.lat]],{color:C.shu,width:3,op:.95,pair:m0}));
+    labelAt((a.lon+b.lon)/2,(a.lat+b.lat)/2,`<div class="pairlab">${a.name}→${b.name} ${deg.toFixed(0)}° ${dk.toFixed(1)}km</div>`);});
+  if(LS["L-ew"]) capitals.forEach(c=>dash.push(lineF([[122,c.lat],[148,c.lat]],{color:C.sun,width:1.5,op:.8})));
+  if(LS["L-sun34"]){const la=34+32/60; dash.push(lineF([[122,la],[148,la]],{color:C.sun,width:2.5,op:.85})); labelAt(135.62,la,`<div class="sunlab near" style="color:${C.sun}">北緯34°32′(太陽の道)</div>`);}
+  if(LS["L-sun"]){const b=PT[sunBaseV]; if(b){
+    [[61,'夏至の日の出',C.sun],[90,'春分・秋分の日の出',C.sun],[119,'冬至の日の出',C.sun],[241,'冬至の日没',C.dusk],[270,'春分・秋分の日没',C.dusk],[299,'夏至の日没',C.dusk]].forEach(([az,lab,col])=>{
+      const pts=[];for(let k=0;k<=2400;k+=20)pts.push(dest(b.lat,b.lon,az,k));
+      solid.push(lineF(pts,{color:col,width:az%180===90?2.6:2,op:.9}));
+      const n=dest(b.lat,b.lon,az,7),f=dest(b.lat,b.lon,az,650);
+      labelAt(n[0],n[1],`<div class="sunlab near" style="color:${col}">${lab} ${az}°</div>`);
+      labelAt(f[0],f[1],`<div class="sunlab far" style="color:${col}">${lab}</div>`);});
+    labelAt(b.lon,b.lat,`<div class="sunlab base">基点：${b.name}</div>`);}}
+  if(dayMode) dash.push(lineF(dayRoute(dayMode).map(id=>[PT[id].lon,PT[id].lat]),{color:css(DAYC[dayMode]),width:4,op:.95}));
+  else if(LS["L-route"]) for(let d=1;d<=5;d++) dash.push(lineF(dayRoute(d).map(id=>[PT[id].lon,PT[id].lat]),{color:css(DAYC[d]),width:2.5,op:.9}));
+  if(LS["L-cap"]) capitals.forEach(c=>[c.rect,c.geky].filter(Boolean).forEach(rr=>{const[n,w]=rr[0],[s,e]=rr[1];fills.push({type:"Feature",properties:{},geometry:{type:"Polygon",coordinates:[[[w,n],[e,n],[e,s],[w,s],[w,n]]]}});}));
+  const fc=f=>({type:"FeatureCollection",features:f});
+  const set=(id,data)=>{const s=map.getSource(id); if(s) s.setData(data); else map.addSource(id,{type:"geojson",data});};
+  set("ov-solid",fc(solid)); set("ov-dash",fc(dash)); set("ov-fill",fc(fills));
+  if(!map.getLayer("ov-fill")){
+    map.addLayer({id:"ov-fill",type:"fill",source:"ov-fill",paint:{"fill-color":C.cap,"fill-opacity":.08}});
+    map.addLayer({id:"ov-fill-line",type:"line",source:"ov-fill",paint:{"line-color":C.cap,"line-width":1.5}});
+    map.addLayer({id:"ov-solid",type:"line",source:"ov-solid",layout:{"line-cap":"round","line-join":"round"},paint:{"line-color":["get","color"],"line-width":["get","width"],"line-opacity":["get","op"]}});
+    map.addLayer({id:"ov-dash",type:"line",source:"ov-dash",paint:{"line-color":["get","color"],"line-width":["get","width"],"line-opacity":["get","op"],"line-dasharray":[2.5,2]}});
+  }
+}
+function zoomClass(){const z=map.getZoom();const el=map.getContainer();el.classList.toggle("lz-far",z<9);el.classList.toggle("lz-min",z<11);el.classList.toggle("lz-low",z<13);}
+function selectPoint(id){ const prev=selected; selected=id; [prev,id].forEach(k=>{ if(k&&markers[k]){ const el=markers[k].getElement(); el.innerHTML=iconHTML(PT[k]); el.style.zIndex=k===id?"50":el.style.zIndex; } }); }
+function goPlace(id){
+  const p=PT[id]; if(!p) return;
+  setTab("map",true); closeSheet();
+  window.scrollTo({top:0,behavior:"smooth"});
+  if(!map){ if(p.type!=='area') openPlace(id); return; }
+  setTimeout(()=>{
+    map.resize();
+    if(p.type==='area'){ map.flyTo({center:[p.lon,p.lat],zoom:p.zoom||14,duration:800}); return; }
+    if(!markers[id]){ LS[LAYOF[p.type]]=true; onlyYk=false; drawMarkers(); }
+    map.flyTo({center:[p.lon,p.lat],zoom:Math.max(map.getZoom(),14),duration:800});
+    setTimeout(()=>openPlace(id),850);
+  },60);
+}
+function jaLabels(){ try{ map.getStyle().layers.forEach(l=>{ if(l.type==="symbol"&&l.layout&&l.layout["text-field"]&&JSON.stringify(l.layout["text-field"]).includes("name")) map.setLayoutProperty(l.id,"text-field",["coalesce",["get","name:ja"],["get","name"]]); }); }catch(e){} }
+function setBase(mode,user){
+  baseMode=mode; try{localStorage.setItem("kaguya-base",mode)}catch(e){}
+  const b=document.getElementById("b-base"); if(b) b.textContent=mode==="osm"?"地理院地図":"標準の地図";
+  if(!map) return;
+  styleReady=false; map.setStyle(mode==="osm"?OFM:GSI_STYLE);
+  if(user) note("");
+}
+function initMap(){
+  if(typeof maplibregl==="undefined"){ note("地図の部品を読み込めませんでした。電波のある場所で開き直してください。"); return; }
+  map=new maplibregl.Map({container:"lmap",style:baseMode==="osm"?OFM:GSI_STYLE,bounds:bb(VIEWS.basin[1]),minZoom:4,maxZoom:18,attributionControl:{compact:true},localIdeographFontFamily:"'Hiragino Sans','Noto Sans CJK JP',sans-serif",dragRotate:true,pitchWithRotate:false});
+  map.addControl(new maplibregl.NavigationControl({visualizePitch:false}),"top-left");
+  map.addControl(new maplibregl.ScaleControl({unit:"metric"}),"bottom-left");
+  geo=new maplibregl.GeolocateControl({positionOptions:{enableHighAccuracy:true},trackUserLocation:true,showAccuracyCircle:true});
+  map.addControl(geo,"top-left");
+  geo.on("error",()=>note("現在地がわかりませんでした。iPhoneの設定で位置情報を許可してください。"));
+  map._kFit=map.getContainer().offsetWidth>0;
+  map.on("style.load",()=>{ styleReady=true; if(baseMode==="osm") jaLabels(); drawOverlay(); });
+  let errs=0;
+  map.on("error",e=>{
+    if(baseMode==="osm"&&!styleReady){ setBase("gsi"); note("標準の地図を読み込めなかったので、地理院地図で表示しています。"); return; }
+    if(++errs===6) note(navigator.onLine===false?"この範囲の地図はまだ保存されていません(地理院地図で「保存」した範囲は電波がなくても表示できます)。":"背景の地図を読み込めません。iPhoneのホーム画面のアプリで開くと表示されます。");
+  });
+  let lastZ=map.getZoom(); map.on("zoomend",()=>{ zoomClass(); const z=map.getZoom(); if((z>=13)!==(lastZ>=13)) drawMarkers(); lastZ=z; });
+  map.on("click","ov-solid",e=>{const f=e.features&&e.features[0]; if(f&&f.properties.road){const rd=roads.find(r=>r.name===f.properties.road); if(rd) openRoad(rd);}});
+  map.on("click","ov-dash",e=>{const f=e.features&&e.features[0]; if(f&&f.properties.pair) openPlace(f.properties.pair);});
+  zoomClass(); drawMarkers();
+  const bt=document.getElementById("b-base"); if(bt) bt.textContent=baseMode==="osm"?"地理院地図":"標準の地図";
+}
+document.getElementById("b-base").addEventListener("click",()=>setBase(baseMode==="osm"?"gsi":"osm",true));
+
+/* 範囲ボタンと絞り込み */
+document.getElementById("presets").innerHTML=Object.entries(VIEWS).map(([k,[n]])=>`<button class="fchip" data-view-preset="${k}" aria-pressed="${k==='basin'}">${n}</button>`).join("")+`<button class="fchip" id="b-only" aria-pressed="false">ゆかりの地だけ</button>`;
+document.getElementById("b-only").addEventListener("click",e=>{onlyYk=!onlyYk;e.currentTarget.setAttribute("aria-pressed",String(onlyYk));drawMarkers();});
+
+
+/* 表示の設定シート(保存・方位表もここ) */
+function tilesList(){
+  const out=new Set();
+  const tx=(lon,z)=>Math.floor((lon+180)/360*2**z);
+  const ty=(lat,z)=>{const r=lat*Math.PI/180;return Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*2**z)};
+  const box=(n,w,s,e,z0,z1)=>{for(let z=z0;z<=z1;z++)for(let x=tx(w,z);x<=tx(e,z);x++)for(let y=ty(n,z);y<=ty(s,z);y++)out.add(`${z}/${x}/${y}`)};
+  box(34.97,135.58,34.20,136.08,9,12);
+  box(34.75,135.62,34.40,135.93,13,14);
+  Object.values(PT).forEach(p=>{ if(p.type==='area') return; for(const z of [15,16]){const x=tx(p.lon,z),y=ty(p.lat,z);for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++)out.add(`${z}/${x+i}/${y+j}`)} });
+  return [...out].map(k=>{const[z,x,y]=k.split("/");return TILE.replace("{z}",z).replace("{x}",x).replace("{y}",y)});
+}
+async function fetchTile(u){ try{ const r=await fetch(u,{mode:"cors"}); if(r.ok) return r; }catch(e){} return fetch(u,{mode:"no-cors"}); }
+let saving=false;
+async function saveTiles(){
+  const msg=document.getElementById("save-msg"), bar=document.getElementById("save-bar");
+  if(!("caches" in window)){ msg.textContent="この画面では保存できません。iPhoneのホーム画面のアプリから保存してください。"; return; }
+  if(saving) return; saving=true;
+  const urls=tilesList(); let done=0, fail=0;
+  try{
+    const cache=await caches.open("kaguya-tiles");
+    let i=0;
+    const worker=async()=>{ while(i<urls.length){ const u=urls[i++]; try{ if(!(await cache.match(u))){ const r=await fetchTile(u); await cache.put(u,r); } }catch(e){fail++;} done++; bar.style.width=(done/urls.length*100)+"%"; msg.textContent=`保存中 ${done} / ${urls.length}`; } };
+    await Promise.all([1,2,3,4,5,6].map(worker));
+    msg.textContent=fail?`保存しました(${urls.length-fail}枚。${fail}枚は失敗したので、もう一度押すと続きを保存します)`:`保存しました(${urls.length}枚)。電波がなくても、この範囲の地図が表示されます。`;
+    try{localStorage.setItem("kaguya-saved",new Date().toLocaleDateString("ja-JP"))}catch(e){}
+  }catch(e){ msg.textContent="保存できませんでした。電波のある場所で、もう一度押してください。"; }
+  saving=false;
+}
+function openLayers(){
+  const bases=[...(PT[sunBaseV]&&!['c-heijo','c-fujiwara','c-asuka','m-miwa','p-檜原神社','m-katsuragi','p-石上神宮','p-春日大社','m-kagu','m-ikoma'].includes(sunBaseV)?[[sunBaseV,PT[sunBaseV].name]]:[]),['c-heijo','平城京'],['c-fujiwara','藤原京'],['c-asuka','飛鳥宮'],['m-miwa','三輪山'],['p-檜原神社','檜原神社'],['m-katsuragi','葛城山'],['p-石上神宮','石上神宮'],['p-春日大社','春日大社'],['m-kagu','天香久山'],['m-ikoma','生駒山']];
+  const rows=[...pairs,['p-檜原神社','m-nijo']];
+  const tb=rows.map(([a,m])=>{const[b,d]=bearing(PT[a],PT[m]);return `<tr><td>${PT[a].name}</td><td>${PT[m].name}</td><td class="n">${b.toFixed(0)}° ${compass(b)}</td><td class="n">${d.toFixed(1)}km</td></tr>`}).join("");
+  let saved=""; try{saved=localStorage.getItem("kaguya-saved")||""}catch(e){}
+  openSheet("地図の表示","",`<div class="lay">${LAYERS.map(([k,t])=>`<label><input type="checkbox" data-layer="${k}" ${LS[k]?"checked":""}>${t}</label>`).join("")}
+    <label style="padding-left:30px;font-size:14px">基点 <select id="sunbase">${bases.map(([v,t])=>`<option value="${v}" ${v===sunBaseV?"selected":""}>${t}</option>`).join("")}</select></label></div>
+   <div class="blk"><h4>日ごとの色(奈良散歩)</h4><div class="rel" style="font-size:13px">${[1,2,3,4,5].map(d=>`<span><span class="sw" style="border-radius:50%;background:var(${DAYC[d]});border-color:transparent"></span>${DAYL[d]}</span>`).join("")}</div></div>
+   <div class="blk" id="save"><h4>地理院地図をiPhoneに保存</h4><p>電波のない山の中で使う「地理院地図」を保存します。奈良の全域と、大和盆地の詳しい地図、各地点のまわりの拡大地図(約${tilesList().length}枚・30MBほど)。Wi-Fiのある場所でどうぞ。${saved?`前回の保存：${saved}`:""}</p>
+    <div class="btnrow"><button class="btn" id="b-dosave">保存する</button></div><div class="prog"><i id="save-bar"></i></div><p id="save-msg" style="font-size:13px;color:var(--muted)"></p></div>
+   <div class="blk"><h4>神社から見た神山の方角</h4><table><thead><tr><th>から</th><th>へ</th><th style="text-align:right">方位</th><th style="text-align:right">距離</th></tr></thead><tbody>${tb}</tbody></table>
+    <p style="font-size:12px;color:var(--muted)">方位は真北0°から時計回り。この緯度では夏至の日の出が約61°、冬至の日の出が約119°(平らな地平線での値)。日の出・日の入りの線は、基点から地球の丸みに沿ってまっすぐ延ばした線で、日本全国まで届きます。古代の道の経路と、印の一部の位置はおおよそです。</p></div>`);
+}
+document.getElementById("b-layers").addEventListener("click",openLayers);
+document.getElementById("b-save").addEventListener("click",()=>{openLayers();setTimeout(()=>document.getElementById("save").scrollIntoView({block:"start"}),50);});
+document.addEventListener("change",e=>{
+  const t=e.target;
+  if(t.dataset&&t.dataset.layer){LS[t.dataset.layer]=t.checked;try{localStorage.setItem("kaguya-layers3",JSON.stringify(LS))}catch(_){} drawOverlay();drawMarkers();}
+  if(t.id==="sunbase"){sunBaseV=t.value;LS["L-sun"]=true;const cb=document.querySelector('[data-layer="L-sun"]');if(cb)cb.checked=true;drawOverlay();}
+});
+
+/* ===== 旅程 ===== */
+let curDay=1;
+const itinEl=document.getElementById("itin"), daychips=document.getElementById("daychips");
+daychips.innerHTML=ITIN.map(x=>`<button class="fchip" data-itin="${x.d}" aria-pressed="${x.d===1}"><span class="dotd" style="display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:var(${DAYC[x.d]})"></span>${x.d}日目 ${x.date}</button>`).join("");
+function renderItin(d){
+  curDay=d; const x=ITIN.find(y=>y.d===d);
+  daychips.querySelectorAll("[data-itin]").forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.itin===d)));
+  itinEl.innerHTML=`<div class="day"><div class="dayhead"><b><span class="dotd" style="background:var(${DAYC[d]})"></span>${d}日目 ${x.date}</b><button class="btn" data-day="${d}">この日を地図で見る</button></div>${x.rows.map(([t,k,v,n])=>{
+    if(k==='go'||k==='stay'){const p=PT[v];return `<div class="row ${k}"><span class="tm">${t||""}</span><div class="bd"><button class="place" data-place="${v}">${k==='stay'?'宿：':''}${p?p.name:v}</button>${n?`<span class="nt">${n}</span>`:""}</div></div>`;}
+    return `<div class="row ${k}"><span class="tm">${t||""}</span><div class="bd">${v}</div></div>`;}).join("")}</div>`;
+}
+renderItin(1);
+const daybar=document.getElementById("daybar");
+function setDayMode(d){
+  dayMode=d||0;
+  if(dayMode){daybar.hidden=false;daybar.style.borderColor=`var(${DAYC[dayMode]})`;daybar.innerHTML=`<span>${DAYL[dayMode]}の巡拝順を表示中</span><button data-dayoff="1">解除</button>`;}
+  else daybar.hidden=true;
+  drawOverlay();drawMarkers();
+  if(dayMode&&map){const bd=new maplibregl.LngLatBounds();dayRoute(dayMode).forEach(id=>bd.extend([PT[id].lon,PT[id].lat]));map.resize();map.fitBounds(bd,{padding:50,maxZoom:14,animate:false});}
+}
+
+/* ===== クリックの振り分け ===== */
+document.addEventListener("click",e=>{
+  if(e.target.id==="b-dosave"){saveTiles();return;}
+  const sp=e.target.closest("[data-itin],[data-day],[data-dayoff],[data-sunbase]");
+  if(sp){
+    if(sp.dataset.itin){closeSheet();setTab("itin",true);renderItin(+sp.dataset.itin);window.scrollTo({top:0});return;}
+    if(sp.dataset.day){setTab("map",true);window.scrollTo({top:0});setTimeout(()=>setDayMode(+sp.dataset.day),250);return;}
+    if(sp.dataset.dayoff){setDayMode(0);return;}
+    if(sp.dataset.sunbase){sunBaseV=sp.dataset.sunbase;LS["L-sun"]=true;try{localStorage.setItem("kaguya-layers3",JSON.stringify(LS))}catch(_){}closeSheet();drawOverlay();const b=PT[sunBaseV];if(map)map.flyTo({center:[b.lon,b.lat],zoom:Math.min(map.getZoom(),7),duration:700});return;}
+  }
+  const t=e.target.closest("[data-tab],[data-f],[data-goch],[data-treech],[data-treegod],[data-place],[data-id],[data-view-preset]"); if(!t) return;
+  if(t.dataset.tab){setTab(t.dataset.tab,true);window.scrollTo({top:0});return;}
+  if(t.dataset.viewPreset){document.querySelectorAll("[data-view-preset]").forEach(b=>b.setAttribute("aria-pressed",String(b===t)));if(map)map.fitBounds(bb(VIEWS[t.dataset.viewPreset][1]),{duration:700});return;}
+  if(t.dataset.f!==undefined){setFilter(t.dataset.f);return;}
+  if(t.dataset.goch){goChapter(t.dataset.goch);return;}
+  if(t.dataset.treech){showInTree({ch:t.dataset.treech});return;}
+  if(t.dataset.treegod){showInTree({id:t.dataset.treegod});return;}
+  if(t.dataset.place){goPlace(t.dataset.place);return;}
+  if(t.dataset.id){openGod(t.dataset.id);}
+});
+document.addEventListener("keydown",e=>{ if((e.key==="Enter"||e.key===" ")&&e.target.matches&&e.target.matches(".pl[data-place],.n")){e.preventDefault(); e.target.click(); } });
+nodesEl.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){const n=e.target.closest(".n");if(n){e.preventDefault();openGod(n.dataset.id)}}});
+
+/* ===== 起動 ===== */
+let start=(location.hash||"").slice(1);
+if(!TABS.includes(start)){try{start=localStorage.getItem("kaguya-tab")||"map"}catch(e){start="map"}}
+setTab(start,false);
+initMap();
+if(start==="map"&&map) setTimeout(()=>map.resize(),60);
+
+</script>
+<script>
+(function(){
+  var st=document.getElementById("status");
+  if(!("serviceWorker" in navigator)) return;
+  st.hidden=false; st.textContent="オフライン準備中";
+  navigator.serviceWorker.register("sw.js").then(function(){return navigator.serviceWorker.ready}).then(function(){
+    var s=""; try{s=localStorage.getItem("kaguya-saved")||""}catch(e){}
+    st.textContent=s?"オフラインで使えます(地図保存済み)":"オフラインで使えます(地図は未保存)"; st.classList.add("ok");
+  }).catch(function(){st.textContent="オフライン未対応";});
+})();
+</script>
+</body></html>
