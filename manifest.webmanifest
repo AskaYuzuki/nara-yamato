@@ -1,6 +1,6 @@
 {
-  "name": "かぐや姫と大和の地図",
-  "short_name": "大和とかぐや姫",
+  "name": "大和の歴史と地図",
+  "short_name": "大和の歴史と地図",
   "lang": "ja",
   "start_url": "./index.html",
   "scope": "./",
