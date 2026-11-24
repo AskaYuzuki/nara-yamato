@@ -245,12 +245,13 @@ td.n{text-align:right;white-space:nowrap}
       </div>
       <div class="mapbtns pinbtns">
         <button class="mbtn" id="b-pin" aria-pressed="false">📍ピン</button>
-        <button class="mbtn" id="b-plines" aria-pressed="true">ライン</button>
+        <button class="mbtn" id="b-plines" aria-pressed="true">方位・太陽</button>
+        <button class="mbtn" id="b-plink" aria-pressed="true">結ぶ</button>
         <button class="mbtn" id="b-pclear" hidden>ピン消去</button>
       </div>
     </div>
     <div class="mfilter" id="presets" role="group" aria-label="表示する範囲"></div>
-    <p class="hint">印をタップすると詳細が出ます。金色の輪が付いた印は、系図の神様のゆかりの地です。印の色は旅程の日ごとの色です。「📍ピン」を押してから地図をタップすると、その場所から東西南北の線と、夏至・冬至・春分・秋分の太陽の道が出ます(ピンはドラッグで動かせます。「ライン」で線を出したり消したりできます)。「保存」で地図をiPhoneに保存すると、電波のない山の中でも表示できます。</p>
+    <p class="hint">印をタップすると詳細が出ます。金色の輪が付いた印は、系図の神様のゆかりの地です。印の色は旅程の日ごとの色です。「📍ピン」を押してから地図をタップすると、ピンが立ちます(神社の詳細の「ここにピンを立てる」でも立てられます)。ピンからは東西南北の線と、夏至・冬至・春分・秋分の太陽の道(地球の丸みに沿った線)が出ます。ピンが2本以上あると、ピン同士が赤い線で結ばれ、方位と距離が出ます。「方位・太陽」「結ぶ」で線を出したり消したりできます。ピンはドラッグで動かせます。「保存」で地図をiPhoneに保存すると、電波のない山の中でも表示できます。</p>
   </section>
 
   <section class="view" data-view="itin" aria-labelledby="h-itin" hidden>
@@ -978,7 +979,7 @@ function openPlace(id){
   const chs=chaptersOfPlace(id);
   if(chs.length) h+=`<div class="blk"><h4>まとめの中で出てくる章</h4><div class="rel">${chs.map(c=>`<button class="chip" data-goch="${c.id}">第${CH.indexOf(c)+1}章 ${c.short}</button>`).join("")}</div></div>`;
   const dd=[...p.days].sort(); if(dd.length) h+=`<div class="blk"><h4>旅程</h4><div class="rel">${dd.map(d=>`<button class="chip" data-itin="${d}">${DAYL[d]}の旅程を見る</button>`).join("")}</div></div>`;
-  h+=`<div class="blk">${p.type!=='cap'?gmaps(p):""}<div class="btnrow" style="margin-top:8px"><button class="btn ghost" data-sunbase="${id}">ここを日の出・日の入りの基点にする</button></div></div>`;
+  h+=`<div class="blk">${p.type!=='cap'?gmaps(p):""}<div class="btnrow" style="margin-top:8px"><button class="btn ghost" data-pinat="${id}">ここにピンを立てる</button> <button class="btn ghost" data-sunbase="${id}">ここを日の出・日の入りの基点にする</button></div></div>`;
   openSheet(p.name,p.yomi,h);
 }
 function openRoad(rd){
@@ -1039,7 +1040,7 @@ function drawMarkers(){
   Object.values(PT).filter(visible).sort((a,b)=>(order[a.type]||0)-(order[b.type]||0)).forEach(p=>{
     const el=document.createElement("div"); el.className="mk"; el.style.zIndex=String(order[p.type]||0); el.dataset.t=p.type;
     el.innerHTML=iconHTML(p); el.setAttribute("role","button"); el.setAttribute("aria-label",p.name); el.tabIndex=0;
-    el.addEventListener("click",ev=>{ev.stopPropagation();openPlace(p.id);});
+    el.addEventListener("click",ev=>{ev.stopPropagation(); if(pinMode){addPin(p.lat,p.lon,p.name);note(`「${p.name}」にピンを立てました(${pins.length}本目)。終わったら「📍ピン」をもう一度押してください。`);return;} openPlace(p.id);});
     markers[p.id]=new maplibregl.Marker({element:el,anchor:"center"}).setLngLat([p.lon,p.lat]).addTo(map);
   });
 }
@@ -1112,7 +1113,7 @@ function initMap(){
   geo.on("error",()=>note("現在地がわかりませんでした。iPhoneの設定で位置情報を許可してください。"));
   map._kFit=map.getContainer().offsetWidth>0;
   map.on("style.load",()=>{ styleReady=true; if(baseMode==="osm") jaLabels(); drawOverlay(); drawPins(); });
-  map.on("click",e=>{ if(!pinMode) return; addPin(e.lngLat.lat,e.lngLat.lng); });
+  map.on("click",e=>{ if(!pinMode) return; const t=e.originalEvent&&e.originalEvent.target; if(t&&t.closest&&t.closest(".upin,.maplibregl-popup")) return; addPin(e.lngLat.lat,e.lngLat.lng); });
   drawPinMarkers();
   let errs=0;
   map.on("error",e=>{
@@ -1127,38 +1128,60 @@ function initMap(){
 }
 document.getElementById("b-base").addEventListener("click",()=>setBase(baseMode==="osm"?"gsi":"osm",true));
 
-/* ===== ピン：東西南北と太陽の道(LeyLine風) ===== */
-let pins=[], pinMode=false, pinLines=true, pinMarkers=[], pinLabels=[];
-try{pins=JSON.parse(localStorage.getItem("kaguya-pins")||"[]")||[]; pinLines=localStorage.getItem("kaguya-pinlines")!=="0";}catch(e){}
-const savePins=()=>{try{localStorage.setItem("kaguya-pins",JSON.stringify(pins));localStorage.setItem("kaguya-pinlines",pinLines?"1":"0");}catch(e){}};
-const PINC=["#d6336c","#1c7ed6","#2b8a3e","#e8590c","#7048e8"];
-function pinDirs(lat){
-  const c=Math.cos(lat*Math.PI/180), as=Math.acos(Math.max(-1,Math.min(1,Math.sin(23.44*Math.PI/180)/c)))*180/Math.PI;
-  const C={ns:"#5c6f8a",sun:css('--sun'),dusk:css('--dusk')};
-  return [[0,"北",C.ns,1],[180,"南",C.ns,1],[90,"東・春分秋分の日の出",C.sun,0],[270,"西・春分秋分の日没",C.dusk,0],
-    [as,"夏至の日の出",C.sun,0],[180-as,"冬至の日の出",C.sun,0],[360-as,"夏至の日没",C.dusk,0],[180+as,"冬至の日没",C.dusk,0]];
-}
+/* ===== ピン：東西南北・太陽の道・ピン同士を結ぶ線(LeyLine風) ===== */
+let pins=[], pinMode=false, pinLines=true, pinLink=true, pinMarkers=[], pinLabels=[];
+try{pins=JSON.parse(localStorage.getItem("kaguya-pins")||"[]")||[]; pinLines=localStorage.getItem("kaguya-pinlines")!=="0"; pinLink=localStorage.getItem("kaguya-pinlink")!=="0";}catch(e){}
+const savePins=()=>{try{localStorage.setItem("kaguya-pins",JSON.stringify(pins));localStorage.setItem("kaguya-pinlines",pinLines?"1":"0");localStorage.setItem("kaguya-pinlink",pinLink?"1":"0");}catch(e){}};
+const PINC=["#d6336c","#1c7ed6","#2b8a3e","#e8590c","#7048e8","#0c8599","#c2255c","#5c940d","#f08c00","#495057"];
+const MAXPIN=10, RAD=Math.PI/180;
+/* 2点間の大圏距離(km)と方位(度) */
+function gcDist(a,b){const f1=a.lat*RAD,f2=b.lat*RAD,dl=(b.lon-a.lon)*RAD;return 6371*Math.acos(Math.min(1,Math.sin(f1)*Math.sin(f2)+Math.cos(f1)*Math.cos(f2)*Math.cos(dl)));}
+function gcBear(a,b){const f1=a.lat*RAD,f2=b.lat*RAD,dl=(b.lon-a.lon)*RAD;let d=Math.atan2(Math.sin(dl)*Math.cos(f2),Math.cos(f1)*Math.sin(f2)-Math.sin(f1)*Math.cos(f2)*Math.cos(dl))/RAD;return (d+360)%360;}
+/* 2点を結ぶ大圏(地球の丸みに沿った線)。両側へ延長もできる */
+function gcPath(a,b,extKm){const az=gcBear(a,b),d=gcDist(a,b),pts=[];const st=Math.max(1,d/200);
+  if(extKm){const back=(az+180)%360;for(let k=extKm;k>0;k-=20)pts.push(dest(a.lat,a.lon,back,k));}
+  for(let k=0;k<=d;k+=st)pts.push(dest(a.lat,a.lon,az,k)); pts.push([b.lon,b.lat]);
+  if(extKm){const az2=(gcBear(b,a)+180)%360;for(let k=20;k<=extKm;k+=20)pts.push(dest(b.lat,b.lon,az2,k));}
+  return pts;}
+function sunAz(lat){return Math.acos(Math.max(-1,Math.min(1,Math.sin(23.44*RAD)/Math.cos(lat*RAD))))/RAD;}
+function pinName(p,i){return p.name||`ピン${i+1}`;}
 function drawPins(){
   if(!map||!styleReady) return;
   pinLabels.forEach(m=>m.remove()); pinLabels=[];
-  const feats=[];
+  const feats=[], lab=(lon,lat,html)=>{const el=document.createElement("div"); el.className="mk lbl"; el.innerHTML=html; pinLabels.push(new maplibregl.Marker({element:el,anchor:"center"}).setLngLat([lon,lat]).addTo(map));};
+  const NS="#1f3a68", SUN=css('--sun'), DUSK=css('--dusk');
   if(pinLines) pins.forEach((p,i)=>{
-    pinDirs(p.lat).forEach(([az,lab,col,ns])=>{
+    const last=i===pins.length-1;
+    /* 東西南北：南北は経線、東西は緯線(同じ緯度をまっすぐ東西へ) */
+    feats.push({type:"Feature",properties:{color:NS,width:2.2,dash:0},geometry:{type:"LineString",coordinates:[[p.lon,Math.min(p.lat+15,46)],[p.lon,Math.max(p.lat-15,24)]]}});
+    const ew=[];for(let x=-14;x<=14;x+=0.25)ew.push([p.lon+x,p.lat]); feats.push({type:"Feature",properties:{color:NS,width:2.2,dash:0},geometry:{type:"LineString",coordinates:ew}});
+    if(last){const d=0.045; lab(p.lon,p.lat+d,`<div class="pinlab" style="color:${NS}">北</div>`); lab(p.lon,p.lat-d,`<div class="pinlab" style="color:${NS}">南</div>`); lab(p.lon+d*1.25,p.lat,`<div class="pinlab" style="color:${NS}">東</div>`); lab(p.lon-d*1.25,p.lat,`<div class="pinlab" style="color:${NS}">西</div>`);}
+    /* 太陽の道：日の出・日の入りの方角へ、大圏(地球の丸みに沿った線)で日本全体まで */
+    const as=sunAz(p.lat);
+    [[as,"夏至の日の出",SUN],[90,"春分・秋分の日の出",SUN],[180-as,"冬至の日の出",SUN],[360-as,"夏至の日没",DUSK],[270,"春分・秋分の日没",DUSK],[180+as,"冬至の日没",DUSK]].forEach(([az,t,col])=>{
       const pts=[];for(let k=0;k<=2400;k+=20)pts.push(dest(p.lat,p.lon,az,k));
-      feats.push({type:"Feature",properties:{color:col,width:ns?1.8:2.4,dash:ns?1:0},geometry:{type:"LineString",coordinates:pts}});
-      if(i===pins.length-1){const n=dest(p.lat,p.lon,az,4.5); const el=document.createElement("div"); el.className="mk lbl"; el.innerHTML=`<div class="pinlab" style="color:${col}">${lab} ${az.toFixed(0)}°</div>`; pinLabels.push(new maplibregl.Marker({element:el,anchor:"center"}).setLngLat(n).addTo(map));}
+      feats.push({type:"Feature",properties:{color:col,width:2.2,dash:1},geometry:{type:"LineString",coordinates:pts}});
+      if(last){const n=dest(p.lat,p.lon,az,9); lab(n[0],n[1],`<div class="pinlab" style="color:${col}">${t} ${az.toFixed(1)}°</div>`);}
     });
   });
+  /* ピン同士を結ぶ線(レイライン) */
+  if(pinLink&&pins.length>1) for(let a=0;a<pins.length;a++) for(let b=a+1;b<pins.length;b++){
+    const A=pins[a],B=pins[b];
+    feats.push({type:"Feature",properties:{color:"#e03131",width:2.8,dash:0},geometry:{type:"LineString",coordinates:gcPath(A,B,300)}});
+    const m=dest(A.lat,A.lon,gcBear(A,B),gcDist(A,B)/2);
+    lab(m[0],m[1],`<div class="pinlab" style="color:#e03131">${a+1}→${b+1} ${gcBear(A,B).toFixed(1)}° ${gcDist(A,B).toFixed(1)}km</div>`);
+  }
   const data={type:"FeatureCollection",features:feats};
   const src=map.getSource("pin-lines"); if(src) src.setData(data); else map.addSource("pin-lines",{type:"geojson",data});
   if(!map.getLayer("pin-solid")){
-    map.addLayer({id:"pin-solid",type:"line",source:"pin-lines",filter:["==",["get","dash"],0],layout:{"line-cap":"round"},paint:{"line-color":["get","color"],"line-width":["get","width"],"line-opacity":.9}});
-    map.addLayer({id:"pin-dash",type:"line",source:"pin-lines",filter:["==",["get","dash"],1],paint:{"line-color":["get","color"],"line-width":["get","width"],"line-opacity":.9,"line-dasharray":[3,2]}});
+    map.addLayer({id:"pin-solid",type:"line",source:"pin-lines",filter:["==",["get","dash"],0],layout:{"line-cap":"round","line-join":"round"},paint:{"line-color":["get","color"],"line-width":["get","width"],"line-opacity":.9}});
+    map.addLayer({id:"pin-dash",type:"line",source:"pin-lines",filter:["==",["get","dash"],1],paint:{"line-color":["get","color"],"line-width":["get","width"],"line-opacity":.95,"line-dasharray":[3,1.5]}});
   }
 }
 function pinPopup(i){
   const p=pins[i];
-  return `<div style="font-size:13px;line-height:1.6"><b>ピン${i+1}</b><br>北緯${p.lat.toFixed(5)}° 東経${p.lon.toFixed(5)}°<br>
+  const links=pins.map((q,k)=>k===i?"":`<div>→ ${k+1}「${esc(pinName(q,k))}」 ${gcBear(p,q).toFixed(1)}° ${gcDist(p,q).toFixed(1)}km</div>`).join("");
+  return `<div style="font-size:13px;line-height:1.6"><b>${i+1}. ${esc(pinName(p,i))}</b><br>北緯${p.lat.toFixed(5)}° 東経${p.lon.toFixed(5)}°${links?`<div style="margin-top:4px">${links}</div>`:""}
   <a href="https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lon}" target="_blank" rel="noopener">Googleマップで開く</a><br>
   <button class="btn ghost" data-pindel="${i}" style="margin-top:6px">このピンを消す</button></div>`;
 }
@@ -1169,22 +1192,28 @@ function drawPinMarkers(){
     const el=document.createElement("div"); el.className="upin";
     el.innerHTML=`<svg viewBox="0 0 24 24"><path d="M12 2C7.6 2 4 5.5 4 9.9 4 15.6 12 22 12 22s8-6.4 8-12.1C20 5.5 16.4 2 12 2z" fill="${PINC[i%PINC.length]}" stroke="#fff" stroke-width="1.5"/></svg><b>${i+1}</b>`;
     const m=new maplibregl.Marker({element:el,anchor:"bottom",draggable:true}).setLngLat([p.lon,p.lat]).setPopup(new maplibregl.Popup({offset:28}).setHTML(pinPopup(i))).addTo(map);
-    m.on("dragend",()=>{const ll=m.getLngLat(); pins[i]={lat:ll.lat,lon:ll.lng}; savePins(); m.getPopup().setHTML(pinPopup(i)); drawPins();});
+    m.on("dragend",()=>{const ll=m.getLngLat(); pins[i]={lat:ll.lat,lon:ll.lng}; savePins(); drawPinMarkers(); drawPins();});
     pinMarkers.push(m);
   });
   const c=document.getElementById("b-pclear"); if(c) c.hidden=!pins.length;
 }
-function setPinMode(on){ pinMode=on; document.getElementById("b-pin").setAttribute("aria-pressed",String(on)); if(map) map.getCanvas().style.cursor=on?"crosshair":""; note(on?"地図をタップした場所にピンを立てます。":""); }
-function addPin(lat,lon){
-  if(pins.length>=5) pins.shift();
-  pins.push({lat,lon}); pinLines=true; document.getElementById("b-plines").setAttribute("aria-pressed","true");
-  savePins(); setPinMode(false); drawPinMarkers(); drawPins();
+function setPinMode(on){ pinMode=on; document.getElementById("b-pin").setAttribute("aria-pressed",String(on)); if(map) map.getCanvas().style.cursor=on?"crosshair":""; note(on?"地図をタップした場所にピンを立てます(続けて何本でも。終わったら「📍ピン」をもう一度押す)。":""); }
+function addPin(lat,lon,name){
+  if(pins.length>=MAXPIN) pins.shift();
+  pins.push(name?{lat,lon,name}:{lat,lon});
+  if(LS["L-sun"]){LS["L-sun"]=false;try{localStorage.setItem("kaguya-layers3",JSON.stringify(LS))}catch(_){} drawOverlay();}
+  savePins(); drawPinMarkers(); drawPins();
 }
 document.getElementById("b-pin").addEventListener("click",()=>setPinMode(!pinMode));
-document.getElementById("b-plines").setAttribute("aria-pressed",String(pinLines));
-document.getElementById("b-plines").addEventListener("click",e=>{pinLines=!pinLines; e.currentTarget.setAttribute("aria-pressed",String(pinLines)); savePins(); drawPins(); if(pinLines&&!pins.length) note("先に「📍ピン」でピンを立ててください。"); });
+const syncPB=()=>{document.getElementById("b-plines").setAttribute("aria-pressed",String(pinLines));document.getElementById("b-plink").setAttribute("aria-pressed",String(pinLink));};
+syncPB();
+document.getElementById("b-plines").addEventListener("click",()=>{pinLines=!pinLines; syncPB(); savePins(); drawPins(); if(pinLines&&!pins.length) note("先に「📍ピン」でピンを立ててください。"); });
+document.getElementById("b-plink").addEventListener("click",()=>{pinLink=!pinLink; syncPB(); savePins(); drawPins(); if(pinLink&&pins.length<2) note("ピンを2本以上立てると、ピン同士が線で結ばれます。"); });
 document.getElementById("b-pclear").addEventListener("click",()=>{pins=[]; savePins(); drawPinMarkers(); drawPins(); note("");});
-document.addEventListener("click",e=>{const b=e.target.closest("[data-pindel]"); if(!b) return; pins.splice(+b.dataset.pindel,1); savePins(); drawPinMarkers(); drawPins();});
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-pindel]"); if(b){ pins.splice(+b.dataset.pindel,1); savePins(); drawPinMarkers(); drawPins(); return; }
+  const a=e.target.closest("[data-pinat]"); if(a){ const p=PT[a.dataset.pinat]; if(!p) return; addPin(p.lat,p.lon,p.name); closeSheet(); setTab("map",true); if(map) map.flyTo({center:[p.lon,p.lat],zoom:Math.min(map.getZoom(),12),duration:700}); note(`「${p.name}」にピンを立てました(${pins.length}本目)。`); }
+});
 
 
 /* 範囲ボタンと絞り込み */
